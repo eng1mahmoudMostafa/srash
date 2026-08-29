@@ -7,10 +7,10 @@
 #   EMAIL_HOST_PASSWORD (كلمة مرور تطبيق Gmail ذات الـ16 حرفًا)
 # كل شيء آخر (النطاق، CSRF، قاعدة البيانات) يُضبط تلقائيًا.
 
-databases:
-  - name: sraha-db
-    databaseName: sraha
-    user: sraha
+# لا قاعدة بيانات داخل Render (تطلب بطاقة) — نستخدم SQLite الآن،
+# وللترقية لاحقًا: أنشئ Postgres مجاني على neon.tech ثم أضف في Render
+# Environment:  DATABASE_URL=<رابط الاتصال>  و  DB_ENGINE=postgres
+# وsettings.py يدعم DATABASE_URL جاهزًا.
 
 services:
   - type: web
@@ -32,31 +32,12 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.9"
+      # SQLite now (no card required). Later: set DB_ENGINE=postgres + DATABASE_URL.
       - key: DB_ENGINE
-        value: postgres
+        value: sqlite
       # Free plan has no Redis — locmem cache works for a single instance.
       - key: CACHE_BACKEND
         value: locmem
-      - key: DB_HOST
-        fromDatabase:
-          name: sraha-db
-          property: host
-      - key: DB_NAME
-        fromDatabase:
-          name: sraha-db
-          property: database
-      - key: DB_USER
-        fromDatabase:
-          name: sraha-db
-          property: user
-      - key: DB_PASSWORD
-        fromDatabase:
-          name: sraha-db
-          property: password
-      - key: DB_PORT
-        fromDatabase:
-          name: sraha-db
-          property: port
       - key: COOKIE_SECURE
         value: "1"
       - key: SECURE_HSTS_SECONDS
