@@ -1,0 +1,27 @@
+# --- Python / Django ---
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+*.py[cod]
+backend/staticfiles/
+backend/db.sqlite3
+
+# Runtime / secrets — never commit these
+.env
+.env.local
+*.pem
+
+# --- Node / Vite ---
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# --- Editor / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+logs/

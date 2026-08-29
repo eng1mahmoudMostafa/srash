@@ -1,0 +1,81 @@
+# render.yaml — النشر السحابي لـ«صراحة بلا كذب» على Render (Blueprint)
+# الخطوات: GitHub → New repo → ارفع مجلد المشروع → Render → New + → Blueprint
+# → اختر المستودع → أدخل القيم السرية المطلوبة → Apply. انتهى.
+#
+# القيم السرية الوحيدة المطلوب إدخالها وقت الـApply:
+#   DJANGO_SECRET_KEY   (مفتاح عشوائي — مزوّد لك في التعليمات)
+#   EMAIL_HOST_PASSWORD (كلمة مرور تطبيق Gmail ذات الـ16 حرفًا)
+# كل شيء آخر (النطاق، CSRF، قاعدة البيانات) يُضبط تلقائيًا.
+
+databases:
+  - name: sraha-db
+    databaseName: sraha
+    user: sraha
+
+services:
+  - type: web
+    name: srash
+    runtime: python
+    plan: free
+    buildCommand: >-
+      cd backend &&
+      pip install -r requirements.txt &&
+      cd ../frontend &&
+      npm install --no-audit --no-fund &&
+      npm run build &&
+      cd ../backend &&
+      python manage.py collectstatic --noinput
+    startCommand: >-
+      cd backend &&
+      python manage.py migrate &&
+      gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 60
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: DB_ENGINE
+        value: postgres
+      # Free plan has no Redis — locmem cache works for a single instance.
+      - key: CACHE_BACKEND
+        value: locmem
+      - key: DB_HOST
+        fromDatabase:
+          name: sraha-db
+          property: host
+      - key: DB_NAME
+        fromDatabase:
+          name: sraha-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: sraha-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: sraha-db
+          property: password
+      - key: DB_PORT
+        fromDatabase:
+          name: sraha-db
+          property: port
+      - key: COOKIE_SECURE
+        value: "1"
+      - key: SECURE_HSTS_SECONDS
+        value: "31536000"
+      # E-mail (non-secret parts)
+      - key: EMAIL_BACKEND
+        value: django.core.mail.backends.smtp.EmailBackend
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USE_TLS
+        value: "1"
+      - key: EMAIL_HOST_USER
+        value: sarahuhbilakadhb@gmail.com
+      - key: DEFAULT_FROM_EMAIL
+        value: sarahuhbilakadhb@gmail.com
+      # Secrets — fill these during the Blueprint "Apply" step:
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
