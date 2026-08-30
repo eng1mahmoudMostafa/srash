@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Routes, Route, NavLink } from "react-router-dom";
 import Home from "./pages/Home";
 import Register from "./pages/Register";
@@ -5,6 +6,40 @@ import Login from "./pages/Login";
 import PublicProfile from "./pages/PublicProfile";
 import Inbox from "./pages/Inbox";
 import SettingsPage from "./pages/Settings";
+
+// شريط انتظار عام يظهر أعلى الشاشة مع أي طلب يستغرق وقتًا في الموقع كله
+function GlobalBusy() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    let timer = null;
+    const onBusy = (e) => {
+      if (e.detail) {
+        // لا تُظهره إلا إذا استمر الانتظار قليلًا (يمنع الوميض في الطلبات السريعة)
+        if (!timer) timer = setTimeout(() => setVisible(true), 350);
+      } else {
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        setVisible(false);
+      }
+    };
+    window.addEventListener("srash:busy", onBusy);
+    return () => {
+      window.removeEventListener("srash:busy", onBusy);
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+
+  if (!visible) return null;
+  return (
+    <div className="global-busy" role="status" aria-live="polite">
+      <span className="spinner" aria-hidden="true"></span>
+      <span>انتظر جاري التحميل... وصلِّ على النبي ﷺ</span>
+    </div>
+  );
+}
 
 function Nav() {
   return (
@@ -35,6 +70,7 @@ function Footer() {
 export default function App() {
   return (
     <div className="app">
+      <GlobalBusy />
       <Nav />
       <main>
         <Routes>
