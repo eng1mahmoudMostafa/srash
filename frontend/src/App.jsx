@@ -5,6 +5,7 @@ import Register from "./pages/Register";
 import Login from "./pages/Login";
 import PublicProfile from "./pages/PublicProfile";
 import Inbox from "./pages/Inbox";
+import Sent from "./pages/Sent";
 import SettingsPage from "./pages/Settings";
 
 // شريط انتظار عام يظهر أعلى الشاشة مع أي طلب يستغرق وقتًا في الموقع كله
@@ -46,6 +47,7 @@ function Nav() {
     <nav className="nav">
       <NavLink to="/" end>الصفحة الرئيسية</NavLink>
       <NavLink to="/inbox">الرسائل</NavLink>
+      <NavLink to="/sent">المرسلة</NavLink>
       <NavLink to="/settings">الإعدادات والتوثيق</NavLink>
       <div className="nav-auth">
         <NavLink to="/login">دخول</NavLink>
@@ -79,6 +81,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/u/:username" element={<PublicProfile />} />
           <Route path="/inbox" element={<Inbox />} />
+          <Route path="/sent" element={<Sent />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>
