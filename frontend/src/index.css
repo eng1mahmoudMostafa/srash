@@ -251,6 +251,18 @@ button.danger {
   border-radius: 8px;
 }
 
+/* ---- طرق الدفع في صندوق الاشتراك ---- */
+.pay-methods {
+  border: 1px dashed #22c55e;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.pay-number {
+  font-size: 1.25em;
+  letter-spacing: 1px;
+}
+
 
 /* ---- مؤشر جاري التعديل ---- */
 .busy-banner {
