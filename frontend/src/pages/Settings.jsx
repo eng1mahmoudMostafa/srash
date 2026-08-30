@@ -162,6 +162,14 @@ export default function SettingsPage() {
       {error && <p className="error">{error}</p>}
       {notice && <p className="success-box">{notice}</p>}
 
+      {/* ---- مؤشر جاري التعديل ---- */}
+      {busy && (
+        <div className="busy-banner" role="status" aria-live="polite">
+          <span className="spinner" aria-hidden="true"></span>
+          <span>انتظر جارٍ التعديل... وصلِّ على النبي ﷺ</span>
+        </div>
+      )}
+
       {/* ---- الملف الشخصي ---- */}
       <section className="card">
         <h1>الملف الشخصي</h1>
