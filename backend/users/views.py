@@ -303,6 +303,29 @@ class SubscribeCreateView(APIView):
         note = ""
         if isinstance(request.data, dict):
             note = str(request.data.get("transfer_note", "")).strip()[:120]
+
+        # Capacity guard: refuse new requests when today's/month's slots
+        # are exhausted (counted from approved subscriptions).
+        now = timezone.now()
+        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        day_used = Subscription.objects.filter(
+            status=Subscription.Status.ACTIVE, decided_at__gte=day_start
+        ).count()
+        month_used = Subscription.objects.filter(
+            status=Subscription.Status.ACTIVE, decided_at__gte=month_start
+        ).count()
+        if day_used >= dj_settings.SUB_SLOTS_DAY:
+            return Response(
+                {"detail": "اكتمل العدد المسموح من الاشتراكات اليوم — حاول غدًا."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if month_used >= dj_settings.SUB_SLOTS_MONTH:
+            return Response(
+                {"detail": "اكتمل العدد المسموح من الاشتراكات هذا الشهر."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         sub = Subscription.objects.create(
             user=request.user,
             amount_egp=dj_settings.PREMIUM_PRICE_EGP,
@@ -335,10 +358,27 @@ class SubscriptionStatusView(APIView):
             and s.expires_at > timezone.now()
             for s in subs
         )
+        # Remaining subscription capacity (decrements with each approval).
+        now = timezone.now()
+        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        day_used = Subscription.objects.filter(
+            status=Subscription.Status.ACTIVE, decided_at__gte=day_start
+        ).count()
+        month_used = Subscription.objects.filter(
+            status=Subscription.Status.ACTIVE, decided_at__gte=month_start
+        ).count()
+        slots = {
+            "day_limit": dj_settings.SUB_SLOTS_DAY,
+            "day_remaining": max(0, dj_settings.SUB_SLOTS_DAY - day_used),
+            "month_limit": dj_settings.SUB_SLOTS_MONTH,
+            "month_remaining": max(0, dj_settings.SUB_SLOTS_MONTH - month_used),
+        }
         return Response(
             {
                 "is_verified": bool(profile.is_verified and has_active),
                 "payment_info": dj_settings.PAYMENT_INFO,
+                "slots": slots,
                 "results": SubscriptionSerializer(subs, many=True).data,
             }
         )
