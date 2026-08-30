@@ -324,8 +324,12 @@ if EMAIL_BACKEND.endswith("smtp.EmailBackend") and not (
 # ---------------------------------------------------------------------------
 PREMIUM_PRICE_EGP = int(os.environ.get("PREMIUM_PRICE_EGP", "100"))
 PREMIUM_DAYS = int(os.environ.get("PREMIUM_DAYS", "30"))
+# Capacity limits for verified subscriptions (visible to users, decremented
+# with every approved subscription — counted per Cairo calendar day/month).
+SUB_SLOTS_DAY = int(os.environ.get("SUB_SLOTS_DAY", "600"))
+SUB_SLOTS_MONTH = int(os.environ.get("SUB_SLOTS_MONTH", "2000"))
 PAYMENT_INFO = os.environ.get(
     "PAYMENT_INFO",
-    "حوّل 100 جنيه شهريًا عبر فودافون كاش ثم أدخل رقم عملية التحويل "
-    "وسيقرر المشريف الطلب من لوحة الإدارة. (بيانات التحويل النهائية تُضبط في .env)",
+    "حوّل 100 جنيه شهريًا على رقم فودافون كاش / إنستاباي: 01130278851 "
+    "ثم أدخل رقم عملية التحويل في الحقل أدناه وسيقرر المشرف الطلب من لوحة الإدارة.",
 )
