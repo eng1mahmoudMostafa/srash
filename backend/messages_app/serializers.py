@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import serializers
 
-from common.crypto import decrypt_message, encrypt_message
+from common.crypto import decrypt_message, encrypt_message, sender_fingerprint
 from common.spam import should_auto_flag
 from messages_app.models import Message
 from users.models import Subscription
@@ -133,6 +133,11 @@ class SendMessageSerializer(serializers.Serializer):
             sender_name_nonce=name_nonce,
             sender_username_ciphertext=username_cipher,
             sender_username_nonce=username_nonce,
+            sender_fingerprint=(
+                sender_fingerprint(sender_user.username)
+                if sender_user is not None
+                else ""
+            ),
             image=validated_data.get("image"),
             status=status,
         )
@@ -195,3 +200,31 @@ class MessageSerializer(serializers.ModelSerializer):
         return self._decrypt_sender_field(
             obj, obj.sender_username_ciphertext, obj.sender_username_nonce
         )
+
+
+class SentMessageSerializer(serializers.ModelSerializer):
+    """Read-side view of the sender's OWN sent messages.
+
+    The sender is the author of the body, so it is decrypted for them.
+    The recipient's username is shown (they own the inbox page).
+    """
+
+    message = serializers.SerializerMethodField()
+    recipient_username = serializers.CharField(source="recipient.username", read_only=True)
+    has_image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Message
+        fields = [
+            "id", "message", "recipient_username", "is_read", "status",
+            "created_at", "has_image",
+        ]
+
+    def get_message(self, obj):
+        try:
+            return decrypt_message(obj.body_ciphertext, obj.body_nonce)
+        except Exception:
+            return None  # never leak an error to the client
+
+    def get_has_image(self, obj):
+        return bool(obj.image)
