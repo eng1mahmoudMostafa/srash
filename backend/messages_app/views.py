@@ -17,7 +17,12 @@ from rest_framework.views import APIView
 
 from common.rate import RateLimitExceeded, check_message_rate_limit
 from messages_app.models import Message
-from messages_app.serializers import MessageSerializer, SendMessageSerializer
+from messages_app.serializers import (
+    MessageSerializer,
+    SendMessageSerializer,
+    SentMessageSerializer,
+)
+from users.models import Subscription
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +124,68 @@ class MessageDetailView(APIView):
         # Soft delete: retain the row until retention purge, but hide it now.
         message.status = Message.Status.DELETED
         message.deleted_at = timezone.now()
+        message.save(update_fields=["status", "deleted_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class SentMessagesView(APIView):
+    """GET /api/messages/sent/ — the sender's own sent messages.
+
+    Matched via a one-way fingerprint (never plaintext, never reversible)
+    so listing sent messages cannot compromise the anonymity guarantee.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from common.crypto import sender_fingerprint
+
+        fp = sender_fingerprint(request.user.username)
+        queryset = Message.objects.filter(
+            sender_fingerprint=fp,
+            status__in=[Message.Status.ACTIVE, Message.Status.FLAGGED],
+        )
+        serializer = SentMessageSerializer(queryset, many=True)
+        return Response({"results": serializer.data})
+
+
+class SentMessageDeleteForRecipientView(APIView):
+    """DELETE /api/messages/<id>/delete-for-recipient/ — premium feature.
+
+    Allows the sender (with an active توثيق subscription) to remove their
+    sent message from the recipient's inbox (soft delete). The message
+    is matched by fingerprint so only its true author can delete it.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, pk):
+        from django.utils import timezone as tz
+
+        # Premium gate on the SENDER: verified profile + active subscription.
+        prof = getattr(request.user, "profile", None)
+        has_active_sub = Subscription.objects.filter(
+            user=request.user,
+            status=Subscription.Status.ACTIVE,
+            expires_at__gt=timezone.now(),
+        ).exists()
+        if prof is None or not prof.is_verified or not has_active_sub:
+            return Response(
+                {"detail": "حذف الرسالة من الطرف الآخر متاح لمشتركي التوثيق فقط."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        from common.crypto import sender_fingerprint
+
+        fp = sender_fingerprint(request.user.username)
+        message = get_object_or_404(
+            Message,
+            pk=pk,
+            sender_fingerprint=fp,
+            status__in=[Message.Status.ACTIVE, Message.Status.FLAGGED],
+        )
+        message.status = Message.Status.DELETED
+        message.deleted_at = tz.now()
         message.save(update_fields=["status", "deleted_at"])
         return Response(status=status.HTTP_204_NO_CONTENT)
 
