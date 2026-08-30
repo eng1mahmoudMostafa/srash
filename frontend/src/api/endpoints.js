@@ -46,8 +46,12 @@ export const fetchStats = () => api.get("/stats/");
 
 // Inbox & messages
 export const fetchInbox = () => api.get("/messages/inbox/");
+export const fetchSent = () => api.get("/messages/sent/");
 export const readMessage = (id) => api.patch(`/messages/${id}/`);
 export const deleteMessage = (id) => api.delete(`/messages/${id}/`);
+// حذف الرسالة من صندوق الطرف الآخر (ميزة الاشتراك الموثق)
+export const deleteForRecipient = (id) =>
+  api.delete(`/messages/${id}/delete-for-recipient/`);
 export const reportMessage = (id, reason, note = "") =>
   api.post(`/messages/${id}/report/`, { reason, note });
 
