@@ -54,6 +54,33 @@ export default function SettingsPage() {
 
   useEffect(() => load(), [load]);
 
+  // نسخ رقم التحويل (فودافون كاش) إلى الحافظة
+  const copyNumber = () => {
+    const num = "01130278851";
+    const done = () => setNotice("تم نسخ رقم التحويل ✅");
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(num).then(done).catch(() => {});
+    } else {
+      const ta = document.createElement("textarea");
+      ta.value = num;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      done();
+    }
+  };
+
+  // فتح تطبيق إنستاباي على هاتف المستخدم (deep link)
+  const openInstaPay = () => {
+    window.location.href = "instapay://";
+    window.setTimeout(() => {
+      setNotice(
+        "لو لم يفتح تطبيق إنستاباي تلقائيًا، افتحه يدويًا وحوّل على الرقم الموضح."
+      );
+    }, 1500);
+  };
+
   async function run(action, okMessage) {
     setBusy(true);
     setError("");
@@ -278,8 +305,16 @@ export default function SettingsPage() {
         <ul>
           <li>✔ شارة «موثق» على صفحتك العامة وصندوق رسائلك.</li>
           <li>🔒 كشف اسم المرسل واسم مستخدمه في المنصة مع كل رسالة.</li>
+          <li>🗑 حذف أي رسالة أرسلتها من صندوق الطرف الآخر.</li>
           <li>💚 دعم استمرار المنصة وتطويرها.</li>
         </ul>
+        {sub?.slots && (
+          <p className="hint">
+            🎟 العدد المتاح اليوم: {sub.slots.day_remaining} من{" "}
+            {sub.slots.day_limit} — هذا الشهر: {sub.slots.month_remaining} من{" "}
+            {sub.slots.month_limit}
+          </p>
+        )}
         {sub?.is_verified || activeSub ? (
           <p className="success-box">
             اشتراكك نشط ✅
@@ -287,14 +322,37 @@ export default function SettingsPage() {
           </p>
         ) : (
           <>
+            <div className="pay-methods">
+              <div className="row">
+                <span>فودافون كاش:</span>
+                <strong className="pay-number" dir="ltr">01130278851</strong>
+                <button type="button" onClick={copyNumber}>
+                  📋 نسخ الرقم
+                </button>
+              </div>
+              <div className="row">
+                <button type="button" onClick={openInstaPay}>
+                  💳 الدفع بإنستاباي — افتح التطبيق
+                </button>
+              </div>
+              <p className="hint">
+                زر إنستاباي ينقلك لتطبيق إنستاباي على هاتفك — لو لم يُفتح
+                تلقائيًا افتح التطبيق يدويًا وحوّل على نفس الرقم أعلاه.
+              </p>
+            </div>
             {sub?.payment_info && <p className="hint">{sub.payment_info}</p>}
             <label>
-              رقم عملية التحويل / ملاحظة (اختياري)
+              رقم عملية التحويل
               <input
                 value={transferNote}
                 onChange={(e) => setTransferNote(e.target.value)}
                 maxLength={120}
+                placeholder="مثال: 987654321"
               />
+              <span className="hint">
+                اكتب هنا رقم العملية الذي يظهر لك بعد إتمام التحويل ليتحقق منه
+                المشرف.
+              </span>
             </label>
             <button disabled={busy} type="button" onClick={doSubscribe}>
               اشترك الآن — 100 جنيه شهريًا
