@@ -216,7 +216,10 @@ class ProfileSerializer(serializers.ModelSerializer):
     def get_avatar_url(self, obj):
         if obj.avatar:
             try:
-                return obj.avatar.url
+                # Cache-busting: إضافة إصدار يتغير مع كل تعديل للصورة
+                # حتى يعرض المتصفح الصورة الجديدة فورًا ولا يُبقي القديمة.
+                version = int(obj.updated_at.timestamp()) if obj.updated_at else 0
+                return f"{obj.avatar.url}?v={version}"
             except ValueError:
                 return None
         return None
