@@ -8,6 +8,12 @@ app_name = "messages"
 urlpatterns = [
     path("", views.MessageSendView.as_view(), name="send"),
     path("inbox/", views.MessageListView.as_view(), name="inbox"),
+    path("sent/", views.SentMessagesView.as_view(), name="sent"),
+    path(
+        "<int:pk>/delete-for-recipient/",
+        views.SentMessageDeleteForRecipientView.as_view(),
+        name="delete-for-recipient",
+    ),
     path("<int:pk>/", views.MessageDetailView.as_view(), name="detail"),
     path("<int:pk>/image/", views.MessageImageView.as_view(), name="image"),
     path(
