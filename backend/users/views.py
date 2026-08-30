@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 from django.conf import settings as dj_settings
 from django.contrib.auth import get_user_model, login, logout
@@ -325,6 +326,34 @@ class SubscribeCreateView(APIView):
                 {"detail": "اكتمل العدد المسموح من الاشتراكات هذا الشهر."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+
+        # Cooldown: one request per user every SUB_COOLDOWN_HOURS.
+        cooldown = timedelta(hours=dj_settings.SUB_COOLDOWN_HOURS)
+        last_sub = (
+            Subscription.objects.filter(user=request.user)
+            .order_by("-created_at")
+            .first()
+        )
+        if last_sub is not None:
+            elapsed = timezone.now() - last_sub.created_at
+            if elapsed < cooldown:
+                minutes_left = max(
+                    1, int((cooldown - elapsed).total_seconds() // 60) + 1
+                )
+                if minutes_left >= 60:
+                    hours_left = (minutes_left + 59) // 60
+                    wait = f"{hours_left} ساعة"
+                else:
+                    wait = f"{minutes_left} دقيقة"
+                return Response(
+                    {
+                        "detail": (
+                            "أرسلت طلب اشتراك بالفعل — يمكنك إرسال طلب جديد "
+                            f"بعد {wait}."
+                        )
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
 
         sub = Subscription.objects.create(
             user=request.user,
