@@ -49,6 +49,32 @@ api.interceptors.response.use(undefined, async (error) => {
   throw error;
 });
 
+// ---- مؤشر الانتظار العام ----
+// يتتبع عدد الطلبات الجارية الآن ويبث حدثًا للواجهة لتُظهر شريط "جاري التحميل"
+let pending = 0;
+function notifyBusy() {
+  window.dispatchEvent(new CustomEvent("srash:busy", { detail: pending > 0 }));
+}
+
+api.interceptors.request.use((config) => {
+  pending += 1;
+  notifyBusy();
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => {
+    pending = Math.max(0, pending - 1);
+    notifyBusy();
+    return response;
+  },
+  (error) => {
+    pending = Math.max(0, pending - 1);
+    notifyBusy();
+    throw error;
+  }
+);
+
 export async function fetchCsrf() {
   // GET /api/auth/csrf/ sets the CSRF cookie (used before first mutation).
   await api.get("/auth/csrf/");
