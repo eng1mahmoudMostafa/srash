@@ -315,6 +315,10 @@ export default function SettingsPage() {
             {sub.slots.month_limit}
           </p>
         )}
+        <p className="hint">
+          ⏳ يمكنك إرسال طلب اشتراك مرة واحدة كل 12 ساعة — تأكد من تحويل المبلغ
+          وكتابة رقم العملية قبل الإرسال.
+        </p>
         {sub?.is_verified || activeSub ? (
           <p className="success-box">
             اشتراكك نشط ✅
