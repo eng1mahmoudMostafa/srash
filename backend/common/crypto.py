@@ -19,6 +19,20 @@ def sign_ip(ip: str) -> str:
     return hmac.new(key, ip.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
+def sender_fingerprint(username: str) -> str:
+    """One-way HMAC (domain-separated) of the sender's username.
+
+    Lets the sender list *their own* sent messages without ever storing
+    the username in plaintext or a foreign key — the fingerprint cannot
+    be reversed to reveal who sent a message.
+    """
+    key = settings.IP_HMAC_KEY.encode("utf-8")
+    return hmac.new(
+        key, b"sender-fp:" + username.strip().lower().encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
 def _load_key() -> bytes:
     raw = settings.MESSAGE_ENCRYPTION_KEY
     if isinstance(raw, str):
