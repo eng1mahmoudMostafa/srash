@@ -38,6 +38,13 @@ class Message(models.Model):
     sender_username_ciphertext = models.TextField(blank=True, default="")
     sender_username_nonce = models.CharField(max_length=128, blank=True, default="")
 
+    # One-way HMAC fingerprint of the sender's username (never plaintext,
+    # never reversible). Used ONLY so the sender can list/delete their own
+    # sent messages — it cannot reveal who sent a message to anyone else.
+    sender_fingerprint = models.CharField(
+        max_length=64, blank=True, default="", db_index=True
+    )
+
     # Optional image attached by the sender. Re-encoded server-side (EXIF/GPS
     # metadata stripped) and served ONLY to the recipient through an
     # authenticated endpoint — never as a public media URL.
