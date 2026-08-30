@@ -328,6 +328,8 @@ PREMIUM_DAYS = int(os.environ.get("PREMIUM_DAYS", "30"))
 # with every approved subscription — counted per Cairo calendar day/month).
 SUB_SLOTS_DAY = int(os.environ.get("SUB_SLOTS_DAY", "600"))
 SUB_SLOTS_MONTH = int(os.environ.get("SUB_SLOTS_MONTH", "2000"))
+# Anti-spam: one subscription request per user every N hours.
+SUB_COOLDOWN_HOURS = int(os.environ.get("SUB_COOLDOWN_HOURS", "12"))
 PAYMENT_INFO = os.environ.get(
     "PAYMENT_INFO",
     "حوّل 100 جنيه شهريًا على رقم فودافون كاش / إنستاباي: 01130278851 "
