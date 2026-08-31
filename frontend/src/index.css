@@ -457,6 +457,23 @@ button.danger {
 .theme-toggle:hover {
   background: rgba(255, 255, 255, 0.08);
 }
+.nav-copy {
+  background: transparent;
+  border: 1px solid #334155;
+  color: var(--text);
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.nav-copy:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.nav-auth .nav-link-me {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 
 /* ---- أزرار المشاركة ---- */
 .share-row {
@@ -602,6 +619,13 @@ button.danger {
 :root[data-theme="light"] .theme-toggle:hover {
   background: rgba(0, 0, 0, 0.05);
 }
+:root[data-theme="light"] .nav-copy {
+  border-color: #cbd5e1;
+  color: var(--text);
+}
+:root[data-theme="light"] .nav-copy:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
 :root[data-theme="light"] .share-url {
   background: #f1f5f9;
 }
@@ -633,6 +657,13 @@ button.danger {
   }
   .theme-toggle {
     padding: 4px 10px;
+  }
+  .nav-copy {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+  }
+  .nav-auth .nav-copy {
+    position: static;
   }
 }
 

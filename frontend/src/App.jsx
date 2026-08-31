@@ -7,6 +7,7 @@ import PublicProfile from "./pages/PublicProfile";
 import Inbox from "./pages/Inbox";
 import Sent from "./pages/Sent";
 import SettingsPage from "./pages/Settings";
+import { fetchMe } from "./api/endpoints";
 
 // شريط انتظار عام يظهر أعلى الشاشة مع أي طلب يستغرق وقتًا في الموقع كله
 function GlobalBusy() {
@@ -54,6 +55,19 @@ function Nav() {
       return "dark";
     }
   });
+  const [me, setMe] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  // جلب بيانات المستخدم الحالي لعرض رابط صفحته في كل الصفحات
+  useEffect(() => {
+    let alive = true;
+    fetchMe()
+      .then((res) => alive && setMe(res.data))
+      .catch(() => alive && setMe(null));
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   function toggleTheme() {
     const next = theme === "dark" ? "light" : "dark";
@@ -63,6 +77,25 @@ function Nav() {
       localStorage.setItem("srash-theme", next);
     } catch {
       /* localStorage غير متاح — يكفي هذه الجلسة */
+    }
+  }
+
+  function copyLink() {
+    if (!me?.shareable_url) return;
+    const done = () => {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(me.shareable_url).then(done).catch(() => {});
+    } else {
+      const ta = document.createElement("textarea");
+      ta.value = me.shareable_url;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      done();
     }
   }
 
@@ -82,8 +115,27 @@ function Nav() {
         >
           {theme === "dark" ? "☀️" : "🌙"}
         </button>
-        <NavLink to="/login">دخول</NavLink>
-        <NavLink to="/register">حساب جديد</NavLink>
+        {me ? (
+          <>
+            <NavLink to={`/u/${me.username}`} title={me.shareable_url}>
+              صفحتي 🔗
+            </NavLink>
+            <button
+              type="button"
+              className="nav-copy"
+              onClick={copyLink}
+              title={copied ? "تم النسخ" : "نسخ رابط صفحتك: " + (me.shareable_url || "")}
+              aria-label="نسخ رابط صفحتك"
+            >
+              {copied ? "✓ تم النسخ" : "📋 نسخ الرابط"}
+            </button>
+          </>
+        ) : (
+          <>
+            <NavLink to="/login">دخول</NavLink>
+            <NavLink to="/register">حساب جديد</NavLink>
+          </>
+        )}
       </div>
     </nav>
   );
