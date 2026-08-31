@@ -10,10 +10,10 @@
         try {
           document.documentElement.setAttribute(
             "data-theme",
-            localStorage.getItem("srash-theme") || "dark"
+            localStorage.getItem("srash-theme") || "light"
           );
         } catch (e) {
-          document.documentElement.setAttribute("data-theme", "dark");
+          document.documentElement.setAttribute("data-theme", "light");
         }
       })();
     </script>

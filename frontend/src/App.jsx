@@ -49,10 +49,10 @@ function Nav() {
       return (
         document.documentElement.getAttribute("data-theme") ||
         localStorage.getItem("srash-theme") ||
-        "dark"
+        "light"
       );
     } catch {
-      return "dark";
+      return "light";
     }
   });
   const [me, setMe] = useState(null);
@@ -116,20 +116,25 @@ function Nav() {
           {theme === "dark" ? "☀️" : "🌙"}
         </button>
         {me ? (
-          <>
-            <NavLink to={`/u/${me.username}`} title={me.shareable_url}>
-              صفحتي 🔗
+          <div className="nav-mylink">
+            <NavLink
+              to={`/u/${me.username}`}
+              className="nav-mylink-url"
+              dir="ltr"
+              title="افتح صفحتي"
+            >
+              {me.shareable_url || `srashapp.pythonanywhere.com/u/${me.username}`}
             </NavLink>
             <button
               type="button"
               className="nav-copy"
               onClick={copyLink}
-              title={copied ? "تم النسخ" : "نسخ رابط صفحتك: " + (me.shareable_url || "")}
+              title={copied ? "تم النسخ" : "نسخ رابط صفحتك"}
               aria-label="نسخ رابط صفحتك"
             >
               {copied ? "✓ تم النسخ" : "📋 نسخ الرابط"}
             </button>
-          </>
+          </div>
         ) : (
           <>
             <NavLink to="/login">دخول</NavLink>

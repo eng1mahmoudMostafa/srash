@@ -469,6 +469,36 @@ button.danger {
 .nav-copy:hover {
   background: rgba(255, 255, 255, 0.08);
 }
+/* ---- رابط صفحتي في شريط التنقل: نص ظاهر + زر نسخ أسفله ---- */
+.nav-mylink {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 6px 10px;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  max-width: 240px;
+}
+.nav-mylink-url {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  direction: ltr;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nav-mylink-url:hover {
+  text-decoration: underline;
+}
+.nav-mylink .nav-copy {
+  width: 100%;
+  text-align: center;
+}
 .nav-auth .nav-link-me {
   display: inline-flex;
   align-items: center;
@@ -626,6 +656,13 @@ button.danger {
 :root[data-theme="light"] .nav-copy:hover {
   background: rgba(0, 0, 0, 0.05);
 }
+:root[data-theme="light"] .nav-mylink {
+  border-color: #cbd5e1;
+  background: rgba(0, 0, 0, 0.03);
+}
+:root[data-theme="light"] .nav-mylink-url {
+  color: #15803d;
+}
 :root[data-theme="light"] .share-url {
   background: #f1f5f9;
 }
@@ -664,6 +701,13 @@ button.danger {
   }
   .nav-auth .nav-copy {
     position: static;
+  }
+  .nav-mylink {
+    max-width: 200px;
+    padding: 5px 8px;
+  }
+  .nav-mylink-url {
+    font-size: 0.72rem;
   }
 }
 
