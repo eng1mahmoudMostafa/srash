@@ -63,6 +63,16 @@ export default function Sent() {
             </p>
             <p className="msg-body">{m.message}</p>
             <p className="hint">{new Date(m.created_at).toLocaleString()}</p>
+
+            {/* ---- رد المستقبِل (يظهر للمرسل فقط) ---- */}
+            {m.reply ? (
+              <div className="reply-box reply-from-recipient">
+                <p className="reply-title">↩️ رد من {m.recipient_username}:</p>
+                <p className="msg-body">{m.reply}</p>
+                <p className="hint">{m.replied_at ? new Date(m.replied_at).toLocaleString() : ""}</p>
+              </div>
+            ) : null}
+
             <div className="row">
               <button onClick={() => removeFromRecipient(m.id)}>
                 🗑 حذف من الطرف الآخر

@@ -54,6 +54,9 @@ export const deleteForRecipient = (id) =>
   api.delete(`/messages/${id}/delete-for-recipient/`);
 export const reportMessage = (id, reason, note = "") =>
   api.post(`/messages/${id}/report/`, { reason, note });
+// رد المُستقبِل على رسالة (مشفَّر مثل الرسالة تمامًا)
+export const replyToMessage = (id, reply) =>
+  api.post(`/messages/${id}/reply/`, { reply });
 
 // Settings
 export const fetchSettings = () => api.get("/settings/");

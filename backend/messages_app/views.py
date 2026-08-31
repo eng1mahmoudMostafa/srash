@@ -190,6 +190,42 @@ class SentMessageDeleteForRecipientView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class MessageReplyView(APIView):
+    """POST /api/messages/<id>/reply/ — the recipient answers a message.
+
+    The reply is stored encrypted (AES-256-GCM) like the body. It becomes
+    visible ONLY to the recipient (inbox) and the original sender (sent
+    page via fingerprint) — never to the public.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        from common.crypto import encrypt_message
+        from messages_app.serializers import validate_reply_text
+
+        message = get_object_or_404(
+            Message,
+            pk=pk,
+            recipient=request.user,
+            status__in=[Message.Status.ACTIVE, Message.Status.FLAGGED],
+        )
+        text = validate_reply_text(str(request.data.get("reply", "")))
+        if text is None:
+            return Response(
+                {"detail": "اكتب ردًا من 1 إلى 2000 حرف."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        cipher, nonce = encrypt_message(text)
+        message.reply_ciphertext = cipher
+        message.reply_nonce = nonce
+        message.replied_at = timezone.now()
+        message.save(update_fields=["reply_ciphertext", "reply_nonce", "replied_at"])
+        return Response(
+            {"detail": "تم إرسال ردك.", "replied_at": message.replied_at}
+        )
+
+
 class MessageImageView(APIView):
     """GET /api/messages/<id>/image/ — recipient-only attached image.
 

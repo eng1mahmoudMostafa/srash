@@ -15,6 +15,7 @@ urlpatterns = [
         name="delete-for-recipient",
     ),
     path("<int:pk>/", views.MessageDetailView.as_view(), name="detail"),
+    path("<int:pk>/reply/", views.MessageReplyView.as_view(), name="reply"),
     path("<int:pk>/image/", views.MessageImageView.as_view(), name="image"),
     path(
         "<int:message_id>/report/",

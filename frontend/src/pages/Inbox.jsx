@@ -6,6 +6,7 @@ import {
   fetchInbox,
   fetchMe,
   readMessage,
+  replyToMessage,
   reportMessage,
 } from "../api/endpoints";
 
@@ -13,6 +14,9 @@ export default function Inbox() {
   const [messages, setMessages] = useState([]);
   const [me, setMe] = useState(null);
   const [error, setError] = useState("");
+  const [replyFor, setReplyFor] = useState(null); // id الرسالة الجاري الرد عليها
+  const [replyText, setReplyText] = useState("");
+  const [replyBusy, setReplyBusy] = useState(false);
 
   const load = useCallback(() => {
     fetchInbox()
@@ -43,6 +47,23 @@ export default function Inbox() {
       await load();
     } catch (err) {
       setError(handleError(err));
+    }
+  }
+
+  async function sendReply(id) {
+    const text = replyText.trim();
+    if (!text) return;
+    setReplyBusy(true);
+    try {
+      await fetchCsrf();
+      await replyToMessage(id, text);
+      setReplyFor(null);
+      setReplyText("");
+      await load();
+    } catch (err) {
+      setError(handleError(err));
+    } finally {
+      setReplyBusy(false);
     }
   }
 
@@ -85,8 +106,49 @@ export default function Inbox() {
             )}
             <p className="msg-body">{m.message}</p>
             <p className="hint">{new Date(m.created_at).toLocaleString()}</p>
+
+            {/* ---- رد المستقبِل ---- */}
+            {m.reply ? (
+              <div className="reply-box">
+                <p className="reply-title">↩️ ردك على هذه الرسالة:</p>
+                <p className="msg-body">{m.reply}</p>
+                <p className="hint">{m.replied_at ? new Date(m.replied_at).toLocaleString() : ""}</p>
+              </div>
+            ) : null}
+
+            {replyFor === m.id ? (
+              <div className="reply-compose">
+                <textarea
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder="اكتب ردك هنا... (سيصل للمرسل مشفرة — يستطيع قراءتها فقط)"
+                  rows={3}
+                  maxLength={2000}
+                />
+                <div className="row">
+                  <button onClick={() => sendReply(m.id)} disabled={replyBusy || !replyText.trim()}>
+                    {replyBusy ? "جاري الإرسال..." : "إرسال الرد ↩️"}
+                  </button>
+                  <button
+                    className="btn-ghost"
+                    onClick={() => {
+                      setReplyFor(null);
+                      setReplyText("");
+                    }}
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
             <div className="row">
               {!m.is_read && <button onClick={() => markRead(m.id)}>قرأتها</button>}
+              {!m.reply && (
+                <button onClick={() => setReplyFor(replyFor === m.id ? null : m.id)}>
+                  ↩️ رد
+                </button>
+              )}
               <button onClick={() => remove(m.id)}>حذف</button>
               <button
                 onClick={() =>

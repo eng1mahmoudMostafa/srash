@@ -50,6 +50,13 @@ class Message(models.Model):
     # authenticated endpoint — never as a public media URL.
     image = models.ImageField(upload_to="message_images/", blank=True, null=True)
 
+    # Recipient's optional reply, stored encrypted the same way as the
+    # body. The reply is decrypted for the recipient (inbox) and for the
+    # original sender (sent page, matched by fingerprint) — nobody else.
+    reply_ciphertext = models.TextField(blank=True, default="")
+    reply_nonce = models.CharField(max_length=128, blank=True, default="")
+    replied_at = models.DateTimeField(null=True, blank=True)
+
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.ACTIVE
     )

@@ -367,3 +367,50 @@ button.danger {
     font-size: 1rem;
   }
 }
+
+/* ---- ميزة الرد على الرسائل ---- */
+.reply-box {
+  margin: 10px 0;
+  padding: 10px 14px;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-right: 4px solid #22c55e;
+  border-radius: 8px;
+}
+
+.reply-box.reply-from-recipient {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  border-right-color: #3b82f6;
+}
+
+.reply-title {
+  font-weight: 700;
+  color: #15803d;
+  margin: 0 0 4px;
+}
+
+.reply-from-recipient .reply-title {
+  color: #1d4ed8;
+}
+
+.reply-compose {
+  margin: 10px 0;
+  padding: 10px;
+  background: #f8fafc;
+  border: 1px dashed #94a3b8;
+  border-radius: 8px;
+}
+
+.reply-compose textarea {
+  width: 100%;
+  min-height: 70px;
+  resize: vertical;
+  margin-bottom: 8px;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--text);
+}
+

@@ -25,6 +25,14 @@ def _recipient_can_reveal(recipient) -> bool:
     ).exists()
 
 
+def validate_reply_text(value: str):
+    """Sanitize the recipient's reply. Returns cleaned text or None."""
+    value = (value or "").strip()
+    if not value or len(value) > 2000:
+        return None
+    return value
+
+
 class SendMessageSerializer(serializers.Serializer):
     """Visitor-facing payload. No sender identity is captured or stored."""
 
@@ -152,6 +160,8 @@ class MessageSerializer(serializers.ModelSerializer):
     sender_username = serializers.SerializerMethodField()
     has_sender_username = serializers.SerializerMethodField()
     has_image = serializers.SerializerMethodField()
+    reply = serializers.SerializerMethodField()
+    replied_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = Message
@@ -159,8 +169,16 @@ class MessageSerializer(serializers.ModelSerializer):
             "id", "message", "is_read", "status", "created_at",
             "sender_name", "has_sender_name",
             "sender_username", "has_sender_username",
-            "has_image",
+            "has_image", "reply", "replied_at",
         ]
+
+    def get_reply(self, obj):
+        if not obj.reply_ciphertext:
+            return None
+        try:
+            return decrypt_message(obj.reply_ciphertext, obj.reply_nonce)
+        except Exception:
+            return None  # never leak an error to the client
 
     def get_has_image(self, obj):
         return bool(obj.image)
@@ -212,12 +230,14 @@ class SentMessageSerializer(serializers.ModelSerializer):
     message = serializers.SerializerMethodField()
     recipient_username = serializers.CharField(source="recipient.username", read_only=True)
     has_image = serializers.SerializerMethodField()
+    reply = serializers.SerializerMethodField()
+    replied_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = Message
         fields = [
             "id", "message", "recipient_username", "is_read", "status",
-            "created_at", "has_image",
+            "created_at", "has_image", "reply", "replied_at",
         ]
 
     def get_message(self, obj):
@@ -225,6 +245,15 @@ class SentMessageSerializer(serializers.ModelSerializer):
             return decrypt_message(obj.body_ciphertext, obj.body_nonce)
         except Exception:
             return None  # never leak an error to the client
+
+    def get_reply(self, obj):
+        """The recipient's reply — decrypted for the original sender only."""
+        if not obj.reply_ciphertext:
+            return None
+        try:
+            return decrypt_message(obj.reply_ciphertext, obj.reply_nonce)
+        except Exception:
+            return None
 
     def get_has_image(self, obj):
         return bool(obj.image)
