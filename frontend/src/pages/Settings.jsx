@@ -56,7 +56,7 @@ export default function SettingsPage() {
 
   // نسخ رقم التحويل (فودافون كاش) إلى الحافظة
   const copyNumber = () => {
-    const num = "01130278851";
+    const num = "01142634188";
     const done = () => setNotice("تم نسخ رقم التحويل ✅");
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(num).then(done).catch(() => {});
@@ -329,7 +329,7 @@ export default function SettingsPage() {
             <div className="pay-methods">
               <div className="row">
                 <span>فودافون كاش:</span>
-                <strong className="pay-number" dir="ltr">01130278851</strong>
+                <strong className="pay-number" dir="ltr">01142634188</strong>
                 <button type="button" onClick={copyNumber}>
                   📋 نسخ الرقم
                 </button>

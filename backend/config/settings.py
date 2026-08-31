@@ -332,6 +332,6 @@ SUB_SLOTS_MONTH = int(os.environ.get("SUB_SLOTS_MONTH", "2000"))
 SUB_COOLDOWN_HOURS = int(os.environ.get("SUB_COOLDOWN_HOURS", "12"))
 PAYMENT_INFO = os.environ.get(
     "PAYMENT_INFO",
-    "حوّل 100 جنيه شهريًا على رقم فودافون كاش / إنستاباي: 01130278851 "
+    "حوّل 100 جنيه شهريًا على رقم فودافون كاش / إنستاباي: 01142634188 "
     "ثم أدخل رقم عملية التحويل في الحقل أدناه وسيقرر المشرف الطلب من لوحة الإدارة.",
 )
