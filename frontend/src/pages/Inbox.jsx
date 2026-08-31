@@ -9,6 +9,7 @@ import {
   replyToMessage,
   reportMessage,
 } from "../api/endpoints";
+import ShareRow from "../components/ShareRow";
 
 export default function Inbox() {
   const [messages, setMessages] = useState([]);
@@ -74,9 +75,11 @@ export default function Inbox() {
         {me?.is_verified && <span className="badge-verified">✔ موثق</span>}
       </h1>
       {me && (
-        <p className="hint">
-          رابط صفحتك: <a href={me.shareable_url}>{me.shareable_url}</a>
-        </p>
+        <div className="card">
+          <p className="hint">رابط صفحتك — شاركه ليصلك المزيد من الرسائل المجهولة:</p>
+          <p className="share-url" dir="ltr">{me.shareable_url}</p>
+          <ShareRow url={me.shareable_url} title="ابعتلي رسالة صراحة مجهولة 💬" />
+        </div>
       )}
       {error && <p className="error">{error}</p>}
       {messages.length === 0 ? (

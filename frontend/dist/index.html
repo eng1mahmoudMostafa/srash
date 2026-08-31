@@ -4,8 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>صراحة بلا كذب — رسائل مجهولة</title>
-    <script type="module" crossorigin src="/assets/index-D81uNliM.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-xez3NzKB.css">
+    <script>
+      // يطبّق الثيم المحفوظ قبل تحميل التطبيق حتى لا يومض لون الخلفية.
+      (function () {
+        try {
+          document.documentElement.setAttribute(
+            "data-theme",
+            localStorage.getItem("srash-theme") || "dark"
+          );
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-BHru_aDd.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CJpfR_4X.css">
   </head>
   <body>
     <div id="root"></div>

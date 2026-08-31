@@ -439,3 +439,200 @@ button.danger {
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* ============================================================
+   الميزات الجديدة: الثيم الفاتح + أزرار المشاركة + الرسائل الجاهزة
+   ============================================================ */
+
+/* ---- مبدّل الثيم في شريط التنقل ---- */
+.theme-toggle {
+  background: transparent;
+  border: 1px solid #334155;
+  color: var(--text);
+  padding: 4px 12px;
+  font-size: 1.05rem;
+  line-height: 1.4;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ---- أزرار المشاركة ---- */
+.share-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.share-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+}
+.share-wa { background: #25d366; }
+.share-tg { background: #229ed9; }
+.share-x  { background: #111827; }
+.share-fb { background: #1877f2; }
+.share-copy { background: #64748b; }
+.share-url {
+  direction: ltr;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 6px 0 2px;
+  word-break: break-all;
+  font-size: 0.9rem;
+}
+.share-box {
+  margin: 10px 0;
+  padding: 10px 0 0;
+  border-top: 1px solid #334155;
+}
+
+/* ---- الرسائل الجاهزة (اقتراحات) ---- */
+.chips {
+  margin: 4px 0 2px;
+}
+.chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.chip {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.chip:hover {
+  background: var(--accent);
+  color: #04110a;
+}
+
+/* ---- الثيم الفاتح ---- */
+:root[data-theme="light"] {
+  --bg: #eef2f7;
+  --card: #ffffff;
+  --text: #0f172a;
+  --muted: #475569;
+  --accent: #16a34a;
+  --danger: #dc2626;
+}
+:root[data-theme="light"] body {
+  background: var(--bg);
+  color: var(--text);
+}
+:root[data-theme="light"] .nav {
+  border-bottom-color: #cbd5e1;
+}
+:root[data-theme="light"] input,
+:root[data-theme="light"] textarea {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: var(--text);
+}
+:root[data-theme="light"] .avatar {
+  background: #e2e8f0;
+}
+:root[data-theme="light"] .success-box {
+  background: #dcfce7;
+  color: #14532d;
+  border: 1px solid #86efac;
+}
+:root[data-theme="light"] .badge {
+  background: #dcfce7;
+  color: #166534;
+}
+:root[data-theme="light"] .global-busy,
+:root[data-theme="light"] .busy-banner {
+  background: #dcfce7;
+  color: #14532d;
+  border-color: #22c55e;
+}
+:root[data-theme="light"] .spinner {
+  border-color: #14532d;
+  border-top-color: transparent;
+}
+:root[data-theme="light"] .premium-box {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+:root[data-theme="light"] .sender-line.locked {
+  color: #b45309;
+}
+:root[data-theme="light"] .reply-box {
+  background: #f0fdf4;
+  border-color: #86efac;
+  border-right-color: #22c55e;
+}
+:root[data-theme="light"] .reply-box.reply-from-recipient {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  border-right-color: #3b82f6;
+}
+:root[data-theme="light"] .reply-title {
+  color: #15803d;
+}
+:root[data-theme="light"] .reply-from-recipient .reply-title {
+  color: #1d4ed8;
+}
+:root[data-theme="light"] .reply-compose {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+:root[data-theme="light"] .reply-compose textarea {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+:root[data-theme="light"] .theme-toggle {
+  border-color: #cbd5e1;
+  color: var(--text);
+}
+:root[data-theme="light"] .theme-toggle:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+:root[data-theme="light"] .share-url {
+  background: #f1f5f9;
+}
+:root[data-theme="light"] .share-box {
+  border-top-color: #e2e8f0;
+}
+:root[data-theme="light"] .btn-ghost {
+  border-color: var(--text);
+  color: var(--text);
+}
+:root[data-theme="light"] .chip:hover {
+  color: #ffffff;
+}
+:root[data-theme="light"] .error {
+  color: #b91c1c;
+}
+:root[data-theme="light"] .footer {
+  border-top-color: #cbd5e1;
+}
+
+/* ---- تحسينات الهاتف لأزرار المشاركة والاقتراحات ---- */
+@media (max-width: 600px) {
+  .share-row .share-btn {
+    width: auto;
+    flex: 1 1 42%;
+  }
+  .chips-row .chip {
+    width: auto;
+  }
+  .theme-toggle {
+    padding: 4px 10px;
+  }
+}
+

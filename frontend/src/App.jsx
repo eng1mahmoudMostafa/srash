@@ -43,13 +43,45 @@ function GlobalBusy() {
 }
 
 function Nav() {
+  const [theme, setTheme] = useState(() => {
+    try {
+      return (
+        document.documentElement.getAttribute("data-theme") ||
+        localStorage.getItem("srash-theme") ||
+        "dark"
+      );
+    } catch {
+      return "dark";
+    }
+  });
+
+  function toggleTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    document.documentElement.setAttribute("data-theme", next);
+    try {
+      localStorage.setItem("srash-theme", next);
+    } catch {
+      /* localStorage غير متاح — يكفي هذه الجلسة */
+    }
+  }
+
   return (
     <nav className="nav">
       <NavLink to="/" end>الصفحة الرئيسية</NavLink>
       <NavLink to="/inbox">الرسائل</NavLink>
       <NavLink to="/sent">المرسلة</NavLink>
-      <NavLink to="/settings">الإعدادات والتوثيق</NavLink>
+      <NavLink to="/settings">الإعدادات</NavLink>
       <div className="nav-auth">
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={toggleTheme}
+          title={theme === "dark" ? "التحويل للوضع النهاري" : "التحويل للوضع الليلي"}
+          aria-label="تبديل الثيم"
+        >
+          {theme === "dark" ? "☀️" : "🌙"}
+        </button>
         <NavLink to="/login">دخول</NavLink>
         <NavLink to="/register">حساب جديد</NavLink>
       </div>

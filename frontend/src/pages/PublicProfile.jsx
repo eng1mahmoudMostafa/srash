@@ -2,6 +2,35 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { fetchCsrf, handleError } from "../api/client";
 import { fetchMe, fetchPublicProfile, sendMessage } from "../api/endpoints";
+import ShareRow from "../components/ShareRow";
+
+// رسائل جاهزة للبدء السريع — بضغطة واحدة تُملأ رسالة صريحة ولبقة.
+const SUGGESTIONS = [
+  {
+    label: "تحية صراحة 👋",
+    text: "السلام عليكم.. كنت حابب أقولك إنك إنسان جميل، وافتكرتك النهاردة فقلت أكتب أول صراحة 💚",
+  },
+  {
+    label: "شكر كبير 🌹",
+    text: "بقالي فترة عايز أشكرك على وقوفك معايا في أصعب وقت، حتى ولو معرفتش اللي بيشكرك مين 🤍",
+  },
+  {
+    label: "دعوة طيبة 🤲",
+    text: "ربنا يجعلك دايماً في سعادة ويهديك لكل خير.. بجد أنا مبسوط إني بشوفك ناجح ✨",
+  },
+  {
+    label: "سؤال صريح ❓",
+    text: "سؤال صراحة بلا كذب: إيه أكتر حاجة ميّزت بيها نفسك في الفترة اللي فاتت؟ 😄",
+  },
+  {
+    label: "رسالة تشجيع 💪",
+    text: "عايزك تعرف إن في ناس كتير بتشجعك وبتدعي ليك من غير ما تحس بيها.. كمّل وربنا معاك 🔥",
+  },
+  {
+    label: "أول رسالة 😅",
+    text: "دي أول رسالة أكتبها على المنصة دي.. قلت أبدأها بصراحة: أنت إنسان مختلف وبجد 🌟",
+  },
+];
 
 export default function PublicProfile() {
   const { username } = useParams();
@@ -73,6 +102,17 @@ export default function PublicProfile() {
           )}
         </div>
       </div>
+      {isLoggedIn && me?.username === username && (
+        <div className="share-box">
+          <p className="hint">
+            أنت صاحب هذه الصفحة — شارك رابطك ليصلك المزيد من الرسائل المجهولة:
+          </p>
+          <ShareRow
+            url={window.location.href}
+            title={`ابعتلي رسالة صراحة مشفرة 💬 — ${profile.display_name || profile.username}`}
+          />
+        </div>
+      )}
       {!profile.can_receive ? (
         <p className="hint">أوقف هذا المستخدم مؤقتًا استقبال الرسائل المجهولة.</p>
       ) : sent ? (
@@ -109,6 +149,23 @@ export default function PublicProfile() {
         </div>
       ) : (
         <form onSubmit={onSubmit} className="form">
+          <div className="chips">
+            <span className="hint">💡 رسائل جاهزة — اختر واحدة وعدّل عليها:</span>
+            <div className="chips-row">
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s.text}
+                  type="button"
+                  className="chip"
+                  onClick={() =>
+                    setMessage(message ? `${message}\n${s.text}` : s.text)
+                  }
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <label>
             اكتب رسالتك المجهولة
             <textarea
