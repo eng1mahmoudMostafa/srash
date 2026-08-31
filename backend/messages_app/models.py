@@ -27,33 +27,33 @@ class Message(models.Model):
     # Optional name the SENDER chooses to include (also encrypted). It is
     # revealed to the recipient only while their premium subscription is
     # active; otherwise it stays encrypted and hidden. Still no sender
-    # account and no IP — identity appears only if the sender writes it.
+    # account and no IP â€” identity appears only if the sender writes it.
     sender_name_ciphertext = models.TextField(blank=True, default="")
     sender_name_nonce = models.CharField(max_length=128, blank=True, default="")
 
     # Sending requires an account; the sender's username is stored
     # ENCRYPTED (never a foreign key, never plaintext) so a premium
-    # verified recipient can reveal it — without ever linking messages
+    # verified recipient can reveal it â€” without ever linking messages
     # to accounts in the database or exposing it to anyone else.
     sender_username_ciphertext = models.TextField(blank=True, default="")
     sender_username_nonce = models.CharField(max_length=128, blank=True, default="")
 
     # One-way HMAC fingerprint of the sender's username (never plaintext,
     # never reversible). Used ONLY so the sender can list/delete their own
-    # sent messages — it cannot reveal who sent a message to anyone else.
+    # sent messages â€” it cannot reveal who sent a message to anyone else.
     sender_fingerprint = models.CharField(
         max_length=64, blank=True, default="", db_index=True
     )
 
     # Optional image attached by the sender. Re-encoded server-side (EXIF/GPS
     # metadata stripped) and served ONLY to the recipient through an
-    # authenticated endpoint — never as a public media URL.
+    # authenticated endpoint â€” never as a public media URL.
     image = models.ImageField(upload_to="message_images/", blank=True, null=True)
 
     # Recipient's optional reply, stored encrypted the same way as the
     # body. The reply is decrypted for the recipient (inbox) and for the
-    # original sender (sent page, matched by fingerprint) — nobody else.
-    reply_ciphertext = models.TextField(blank=True, default="")
+    # original sender (sent page, matched by fingerprint) â€” nobody else.
+    reply_ciphertext = models.TextField(blank=True, null=True, default="")
     reply_nonce = models.CharField(max_length=128, blank=True, default="")
     replied_at = models.DateTimeField(null=True, blank=True)
 
