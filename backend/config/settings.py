@@ -290,6 +290,53 @@ SITE_BASE_URL = (
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# ---------------------------------------------------------------------------
+# Cloudflare R2 object storage (optional, zero-egress-cost).
+# When R2_* variables are set in `.env`, ALL new media uploads (avatars and
+# message images) are stored in the R2 bucket instead of the server disk.
+# This keeps the PythonAnywhere 512MB free disk from ever filling up.
+# If the variables are missing, everything falls back to local disk storage
+# (existing uploaded files keep being served from /media/ as before).
+# Required .env variables:
+#   R2_ACCOUNT_ID        Cloudflare account ID (R2 dashboard)
+#   R2_BUCKET            bucket name, e.g. "srash-media"
+#   R2_ACCESS_KEY_ID     R2 API token access key
+#   R2_SECRET_ACCESS_KEY R2 API token secret
+#   R2_PUBLIC_BASE       public base URL of the bucket (enable r2.dev or a
+#                        custom domain), e.g. "https://pub-xxxx.r2.dev"
+# ---------------------------------------------------------------------------
+R2_ACCOUNT_ID = os.environ.get("R2_ACCOUNT_ID", "")
+R2_BUCKET = os.environ.get("R2_BUCKET", "")
+R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID", "")
+R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY", "")
+R2_PUBLIC_BASE = os.environ.get("R2_PUBLIC_BASE", "").rstrip("/")
+
+USE_R2_MEDIA = all(
+    [R2_ACCOUNT_ID, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY]
+)
+if USE_R2_MEDIA:
+    INSTALLED_APPS.append("storages")
+    STORAGES = {
+        # User uploads go to R2.
+        "default": {"BACKEND": "storages.backends.s3.S3Storage"},
+        # Static files keep the existing WhiteNoise behaviour untouched.
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
+        },
+    }
+    AWS_ACCESS_KEY_ID = R2_ACCESS_KEY_ID
+    AWS_SECRET_ACCESS_KEY = R2_SECRET_ACCESS_KEY
+    AWS_STORAGE_BUCKET_NAME = R2_BUCKET
+    AWS_S3_ENDPOINT_URL = f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+    # R2 buckets have no ACLs — the bucket must be exposed publicly via its
+    # r2.dev URL or a custom domain, and reads must not be signed.
+    AWS_QUERYSTRING_AUTH = False
+    AWS_DEFAULT_ACL = None
+    AWS_S3_FILE_OVERWRITE = False
+    if R2_PUBLIC_BASE:
+        AWS_S3_CUSTOM_DOMAIN = R2_PUBLIC_BASE.split("://", 1)[-1]
+        MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/"
+
 # Message image attachments: allow up to 5 MB uploads (Django's default
 # 2.5 MB body cap would silently reject them with a 400).
 DATA_UPLOAD_MAX_MEMORY_SIZE = 8 * 1024 * 1024
