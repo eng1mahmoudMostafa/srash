@@ -149,10 +149,22 @@ function Nav() {
 function Footer() {
   return (
     <footer className="footer">
+      <div className="footer-ad">
+        <span className="footer-ad-badge">مساحة إعلانية</span>
+        <p>لو عاوز اعلانك يظهر هنا يرجا التواصل واتس علي رقم +201142634188</p>
+        <a
+          className="footer-ad-btn"
+          href="https://wa.me/201142634188"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          تواصل واتساب
+        </a>
+      </div>
       <p>صراحة بلا كذب — استقبل رسائلك المجهولة بصراحة وأمان.</p>
       <p>
         جميع الحقوق محفوظة © {new Date().getFullYear()} —{" "}
-        <strong>البشمهندس محمود مصطفى</strong>
+        <strong className="designer-name">تصميم محمود مصطفي محمود</strong>
       </p>
     </footer>
   );

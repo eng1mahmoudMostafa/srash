@@ -241,6 +241,50 @@ button.danger {
 .footer strong {
   color: var(--text);
 }
+
+.designer-name {
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+/* ---- صندوق الإعلان في الفوتر ---- */
+.footer-ad {
+  background: rgba(251, 191, 36, 0.08);
+  border: 2px dashed #fbbf24;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.footer-ad p {
+  margin: 8px 0 10px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.footer-ad-badge {
+  display: inline-block;
+  background: #fbbf24;
+  color: #111;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 12px;
+  border-radius: 999px;
+}
+
+.footer-ad-btn {
+  display: inline-block;
+  background: #22c55e;
+  color: #04110a !important;
+  font-weight: 700;
+  padding: 8px 22px;
+  border-radius: 8px;
+  text-decoration: none;
+}
+
+.footer-ad-btn:hover {
+  background: #16a34a;
+}
 /* Red no-email warning on the register page */
 .warn-email {
   border: 1px solid #b91c1c;
