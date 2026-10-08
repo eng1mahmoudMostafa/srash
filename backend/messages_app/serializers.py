@@ -66,7 +66,11 @@ class SendMessageSerializer(serializers.Serializer):
         return validate_real_name(value)
 
     def validate_image(self, value):
-        """Sanitize: 5MB cap, re-encode as JPEG (strips EXIF/GPS), ≤1600px."""
+        """Sanitize: 5MB cap, re-encode as JPEG (strips EXIF/GPS), ≤1600px.
+
+        ثم تُرفع على Catbox ونخزن الرابط فقط (validated_data['image_url'])
+        بدل الملف المحلي — صفر مساحة على السيرفر.
+        """
         if value is None:
             return None
         if value.size > 5 * 1024 * 1024:
@@ -91,9 +95,16 @@ class SendMessageSerializer(serializers.Serializer):
         img.thumbnail((1600, 1600), Image.LANCZOS)
         buf = BytesIO()
         img.save(buf, format="JPEG", quality=85)
-        from django.core.files.base import ContentFile
 
-        return ContentFile(buf.getvalue(), name="attach.jpg")
+        from common.catbox import upload_to_catbox
+
+        try:
+            url = upload_to_catbox(buf.getvalue(), "attach.jpg")
+        except RuntimeError as exc:
+            raise serializers.ValidationError(str(exc))
+        # نخزن الرابط كخاصية على السيريالايزر ليستخدمه validate()/create()
+        self._catbox_url = url
+        return None
 
     def validate(self, attrs):
         username = attrs["username"].strip().lower()
@@ -105,6 +116,9 @@ class SendMessageSerializer(serializers.Serializer):
                 {"username": "المستخدم غير موجود."}
             )
         attrs["recipient"] = recipient
+        # رابط Catbox المرفوع في validate_image (إن وُجد)
+        if getattr(self, "_catbox_url", ""):
+            attrs["image_url"] = self._catbox_url
         return attrs
 
     def create(self, validated_data):
@@ -146,7 +160,7 @@ class SendMessageSerializer(serializers.Serializer):
                 if sender_user is not None
                 else ""
             ),
-            image=validated_data.get("image"),
+            image_url=validated_data.get("image_url", ""),
             status=status,
         )
 
@@ -181,7 +195,7 @@ class MessageSerializer(serializers.ModelSerializer):
             return None  # never leak an error to the client
 
     def get_has_image(self, obj):
-        return bool(obj.image)
+        return bool(obj.image or obj.image_url)
 
     def get_message(self, obj):
         try:
@@ -256,4 +270,4 @@ class SentMessageSerializer(serializers.ModelSerializer):
             return None
 
     def get_has_image(self, obj):
-        return bool(obj.image)
+        return bool(obj.image or obj.image_url)

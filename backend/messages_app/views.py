@@ -229,21 +229,24 @@ class MessageReplyView(APIView):
 class MessageImageView(APIView):
     """GET /api/messages/<id>/image/ — recipient-only attached image.
 
-    The stored file is re-encoded server-side on upload (EXIF/GPS metadata
-    stripped) and served ONLY to the owning recipient through this
-    authenticated endpoint — never as a public media URL. 404 (not 403) for
-    anything else so message existence is not revealed to other accounts.
+    لو الصورة على Catbox (image_url) نعيد توجيه آمن للرابط.
+    لو ملف محلي قديم نخدمه كما قبل — ثم تُحذف الملفات المحلية تدريجياً.
+    404 (not 403) for anything else so message existence is not revealed.
     """
 
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk):
+        from django.http import HttpResponseRedirect
+
         message = get_object_or_404(
             Message,
             pk=pk,
             recipient=request.user,
             status__in=[Message.Status.ACTIVE, Message.Status.FLAGGED],
         )
+        if message.image_url:
+            return HttpResponseRedirect(message.image_url)
         if not message.image:
             return Response(
                 {"detail": "لا توجد صورة مرفقة بهذه الرسالة."},

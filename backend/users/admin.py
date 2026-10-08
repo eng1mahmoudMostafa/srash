@@ -19,6 +19,7 @@ class ProfileAdmin(admin.ModelAdmin):
     list_display = ("user", "display_name", "is_verified", "created_at")
     search_fields = ("user__username", "display_name")
     list_filter = ("is_verified",)
+    readonly_fields = ("avatar_url",)
 
 
 @admin.register(UserSettings)

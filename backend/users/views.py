@@ -211,7 +211,11 @@ class MyProfileView(APIView):
 
 
 class AvatarUploadView(APIView):
-    """POST multipart 'avatar': validates, crops square, stores max 512px."""
+    """POST multipart 'avatar': validates, crops square, uploads to Catbox.
+
+    الصورة تُنظف (تصغير + إزالة EXIF) ثم تُرفع على Catbox، ونخزن
+    الرابط فقط — لا تستهلك أي مساحة على السيرفر.
+    """
 
     permission_classes = [permissions.IsAuthenticated]
     MAX_BYTES = 3 * 1024 * 1024
@@ -256,25 +260,42 @@ class AvatarUploadView(APIView):
         buf = BytesIO()
         img.save(buf, format="JPEG", quality=85)
 
+        # الرفع على Catbox بدل التخزين المحلي (توفير مساحة السيرفر)
+        from common.catbox import upload_to_catbox
+
+        try:
+            url = upload_to_catbox(buf.getvalue(), "avatar.jpg")
+        except RuntimeError as exc:
+            return Response({"detail": str(exc)}, status=502)
+
         profile = Profile.objects.get_or_create(user=request.user)[0]
+        # حذف أي ملف محلي قديم (تنظيف نهائي) والاعتماد على الرابط
         if profile.avatar:
-            profile.avatar.delete(save=False)
-        profile.avatar.save(
-            f"avatars/u{request.user.id}.jpg", ContentFile(buf.getvalue())
-        )
-        return Response({"avatar_url": profile.avatar.url})
+            try:
+                profile.avatar.delete(save=False)
+            except Exception:
+                pass
+            profile.avatar = None
+        profile.avatar_url = url
+        profile.save(update_fields=["avatar", "avatar_url"])
+        return Response({"avatar_url": url})
 
     def delete(self, request):
         """Remove the account photo entirely (خيار إلغاء الصورة)."""
         profile = Profile.objects.get_or_create(user=request.user)[0]
-        if not profile.avatar:
+        if profile.avatar:
+            try:
+                profile.avatar.delete(save=False)
+            except Exception:
+                pass
+            profile.avatar = None
+        if not profile.avatar_url and not profile.avatar:
             return Response(
                 {"detail": "لا توجد صورة لإزالتها."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        profile.avatar.delete(save=False)
-        profile.avatar = None
-        profile.save(update_fields=["avatar"])
+        profile.avatar_url = ""
+        profile.save(update_fields=["avatar", "avatar_url"])
         return Response({"detail": "تمت إزالة صورة الحساب.", "avatar_url": None})
 
 

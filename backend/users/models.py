@@ -54,6 +54,9 @@ class Profile(models.Model):
     display_name = models.CharField(max_length=50, blank=True)
     bio = models.TextField(blank=True, max_length=500)
     avatar = models.ImageField(upload_to="avatars/", blank=True, null=True)
+    # رابط الصورة على استضافة خارجية (Catbox) — يوفر مساحة السيرفر.
+    # عند وجوده يُستخدم بدل ملف avatar المحلي.
+    avatar_url = models.URLField(max_length=500, blank=True, default="")
     # Premium badge: granted while an approved subscription is running.
     is_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

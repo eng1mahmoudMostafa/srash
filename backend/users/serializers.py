@@ -214,6 +214,9 @@ class ProfileSerializer(serializers.ModelSerializer):
         ]
 
     def get_avatar_url(self, obj):
+        # الأولوية لرابط Catbox (لا يستهلك مساحة السيرفر)
+        if obj.avatar_url:
+            return obj.avatar_url
         if obj.avatar:
             try:
                 # Cache-busting: إضافة إصدار يتغير مع كل تعديل للصورة

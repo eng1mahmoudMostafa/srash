@@ -139,6 +139,13 @@ class SenderRevealTests(TestCase):
     """The optional sender-chosen name is revealed ONLY to recipients with
     an active premium (توثيق) subscription."""
 
+    def setUp(self):
+        # LocMemCache مشترك بين الاختبارات؛ نمسحه لتجنب تأثر rate-limit
+        # ببقايا اختبارات سابقة (نفس سبب الإصلاح في SendingRegressionTests).
+        from django.core.cache import cache
+
+        cache.clear()
+
     def _send(self):
         User.objects.create_user(username="sara", password="Secret-12345")
         self.client.post(
@@ -253,6 +260,7 @@ class SendingRegressionTests(TestCase):
 
     def test_image_attach_open_and_privacy(self):
         from io import BytesIO
+        from unittest import mock
 
         from PIL import Image
         from django.core.files.uploadedfile import SimpleUploadedFile
@@ -264,15 +272,21 @@ class SendingRegressionTests(TestCase):
         upload = SimpleUploadedFile(
             "a.jpg", buf.getvalue(), content_type="image/jpeg"
         )
-        resp = self.client.post(
-            reverse("messages:send"),
-            data={"username": "ahmed", "message": "مع صورة", "image": upload},
-            format="multipart",
-        )
+        with mock.patch(
+            "common.catbox.upload_to_catbox",
+            return_value="https://files.catbox.moe/test123.jpg",
+        ):
+            resp = self.client.post(
+                reverse("messages:send"),
+                data={"username": "ahmed", "message": "مع صورة", "image": upload},
+                format="multipart",
+            )
         self.assertEqual(resp.status_code, 201, resp.data)
 
         msg = Message.objects.get(recipient=recipient)
-        self.assertTrue(msg.image)
+        # الصورة الآن رابط Catbox بدل ملف محلي
+        self.assertEqual(msg.image_url, "https://files.catbox.moe/test123.jpg")
+        self.assertFalse(bool(msg.image))
 
         # Another account can NOT open the image (recipient-only).
         User.objects.create_user(username="omar", password="Secret-12345")
@@ -288,20 +302,16 @@ class SendingRegressionTests(TestCase):
             404,
         )
 
-        # The recipient opens it — and last-seen got updated by middleware.
+        # The recipient opens it → redirect to Catbox — and last-seen got
+        # updated by middleware.
         self.client.force_login(recipient)
         resp = self.client.get(
             reverse("messages:image", kwargs={"pk": msg.pk})
         )
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp["Content-Type"], "image/jpeg")
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp["Location"], "https://files.catbox.moe/test123.jpg")
         recipient.refresh_from_db()
         self.assertIsNotNone(recipient.last_seen_at)
-        img_resp = self.client.get(
-            reverse("messages:image", kwargs={"pk": msg.pk})
-        )
-        self.assertEqual(img_resp.status_code, 200)
-        self.assertEqual(img_resp["Content-Type"], "image/jpeg")
 
         recipient.refresh_from_db()
         self.assertIsNotNone(recipient.last_seen_at)
@@ -315,6 +325,7 @@ class AvatarRemoveTests(TestCase):
 
     def _upload_avatar(self):
         from io import BytesIO
+        from unittest import mock
 
         from PIL import Image
         from django.core.files.uploadedfile import SimpleUploadedFile
@@ -324,11 +335,15 @@ class AvatarRemoveTests(TestCase):
         upload = SimpleUploadedFile(
             "me.jpg", buf.getvalue(), content_type="image/jpeg"
         )
-        return self.client.post(
-            reverse("settings:avatar"),
-            data={"avatar": upload},
-            format="multipart",
-        )
+        with mock.patch(
+            "common.catbox.upload_to_catbox",
+            return_value="https://files.catbox.moe/avatar1.jpg",
+        ):
+            return self.client.post(
+                reverse("settings:avatar"),
+                data={"avatar": upload},
+                format="multipart",
+            )
 
     def test_owner_can_remove_avatar(self):
         me = User.objects.create_user(username="ahmed", password="Secret-12345")
@@ -338,12 +353,13 @@ class AvatarRemoveTests(TestCase):
         from users.models import Profile
 
         profile = Profile.objects.get(user=me)
-        self.assertTrue(profile.avatar)
+        # الأفاتار الآن رابط Catbox بدل ملف محلي
+        self.assertEqual(profile.avatar_url, "https://files.catbox.moe/avatar1.jpg")
 
         resp = self.client.delete(reverse("settings:avatar"))
         self.assertEqual(resp.status_code, 200)
         profile.refresh_from_db()
-        self.assertFalse(profile.avatar)
+        self.assertFalse(profile.avatar_url)
 
         # Removing again → 404 (nothing to remove).
         self.assertEqual(
