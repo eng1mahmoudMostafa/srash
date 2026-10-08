@@ -27,6 +27,11 @@ def _post_catbox(file_bytes: bytes, filename: str) -> str:
         f'Content-Disposition: form-data; name="reqtype"{CRLF}{CRLF}'
         f"fileupload{CRLF}"
         f"--{boundary}{CRLF}"
+        # Catbox يرفض الطلبات بدون حقل userhash بـ 412 (القيمة الفاضية
+        # تكفي للرفع المجهول) — خصوصًا من IP سيرفرات زي PythonAnywhere.
+        f'Content-Disposition: form-data; name="userhash"{CRLF}{CRLF}'
+        f"{CRLF}"
+        f"--{boundary}{CRLF}"
         f'Content-Disposition: form-data; name="fileToUpload"; filename="{filename}"{CRLF}'
         f"Content-Type: image/jpeg{CRLF}{CRLF}"
     ).encode() + file_bytes + f"{CRLF}--{boundary}--{CRLF}".encode()
@@ -36,7 +41,13 @@ def _post_catbox(file_bytes: bytes, filename: str) -> str:
         data=body,
         headers={
             "Content-Type": f"multipart/form-data; boundary={boundary}",
-            "User-Agent": "srash-app/1.0",
+            # UA بتاع بوت + Catbox بيرجّع 412 — نبعت UA زي المتصفحات.
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/126.0.0.0 Safari/537.36"
+            ),
+            "Accept": "*/*",
         },
         method="POST",
     )
