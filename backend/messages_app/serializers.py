@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import serializers
@@ -8,6 +9,8 @@ from common.spam import should_auto_flag
 from messages_app.models import Message
 from users.models import Subscription
 from users.serializers import validate_real_name
+
+from uuid import uuid4
 
 User = get_user_model()
 
@@ -70,6 +73,10 @@ class SendMessageSerializer(serializers.Serializer):
 
         ثم تُرفع على Catbox ونخزن الرابط فقط (validated_data['image_url'])
         بدل الملف المحلي — صفر مساحة على السيرفر.
+
+        إذا فشل الرفع على Catbox كلياً (مثلاً سيرفر PythonAnywhere الحالي
+        حظر أو تعذّر وصلاً)، نحتفظ بالصورة كملف محلي لضمان وصول الرسالة
+        دون انقطاع ونخزنها على الخادم لمرة واحدة فقط.
         """
         if value is None:
             return None
@@ -100,9 +107,12 @@ class SendMessageSerializer(serializers.Serializer):
 
         try:
             url = upload_to_catbox(buf.getvalue(), "attach.jpg")
-        except RuntimeError as exc:
-            raise serializers.ValidationError(str(exc))
-        # نخزن الرابط كخاصية على السيريالايزر ليستخدمه validate()/create()
+        except RuntimeError:
+            # حفظ محلي مؤقت حتى لا تُفقد الصورة إذا تعذّر الرفع على Catbox
+            return SimpleUploadedFile(
+                f"attach-{uuid4().hex[:10]}.jpg", buf.getvalue(), "image/jpeg"
+            )
+        # رابط Catbox المرفوع نخزنه كخاصية على السيريالايزر ليستخدمه validate()/create()
         self._catbox_url = url
         return None
 

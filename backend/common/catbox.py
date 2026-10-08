@@ -5,31 +5,31 @@
 النتيجة: صفر مساحة تخزين صور على PythonAnywhere.
 """
 import logging
+import time
 import urllib.parse
 import urllib.request
+import uuid
 
 logger = logging.getLogger(__name__)
 
 CATBOX_API_URL = "https://catbox.moe/user/api.php"
 TIMEOUT = 25  # ثانية
+UPLOAD_RETRIES = 3        # محاولة إعادة الرفع في حال فشل مؤقت
+BACKOFF_BASE = 1.0        # ثانية (مضاعفة كل محاولة)
 
 
-def upload_to_catbox(file_bytes: bytes, filename: str = "image.jpg") -> str:
-    """ارفع بايتات صورة على Catbox وأرجع الرابط المباشر.
-
-    يرمي RuntimeError لو فشل الرفع (حتى يرى المستخدم رسالة واضحة).
-    """
-    import uuid
-
+def _post_catbox(file_bytes: bytes, filename: str) -> str:
+    """ارفع بايتات صورة على Catbox وأرجع الرابط المباشر، أو ارفع خطأ."""
+    CRLF = chr(13) + chr(10)
     boundary = f"----catbox{uuid.uuid4().hex}"
     body = (
-        f"--{boundary}\r\n"
-        'Content-Disposition: form-data; name="reqtype"\r\n\r\n'
-        "fileupload\r\n"
-        f"--{boundary}\r\n"
-        f'Content-Disposition: form-data; name="fileToUpload"; filename="{filename}"\r\n'
-        "Content-Type: image/jpeg\r\n\r\n"
-    ).encode() + file_bytes + f"\r\n--{boundary}--\r\n".encode()
+        f"--{boundary}{CRLF}"
+        'Content-Disposition: form-data; name="reqtype"{CRLF}{CRLF}'
+        "fileupload{CRLF}"
+        f"--{boundary}{CRLF}"
+        f'Content-Disposition: form-data; name="fileToUpload"; filename="{filename}"{CRLF}'
+        "Content-Type: image/jpeg{CRLF}{CRLF}"
+    ).encode() + file_bytes + f"{CRLF}--{boundary}--{CRLF}".encode()
 
     req = urllib.request.Request(
         CATBOX_API_URL,
@@ -40,18 +40,40 @@ def upload_to_catbox(file_bytes: bytes, filename: str = "image.jpg") -> str:
         },
         method="POST",
     )
-    try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-            text = resp.read().decode("utf-8", errors="replace").strip()
-    except Exception as exc:
-        logger.warning("catbox upload failed: %s", exc)
-        raise RuntimeError("تعذر رفع الصورة حالياً — حاول مجدداً بعد قليل.")
+    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+        text = resp.read().decode("utf-8", errors="replace").strip()
 
     if not text.startswith("https://files.catbox.moe/"):
-        logger.warning("catbox unexpected response: %s", text[:200])
-        raise RuntimeError("تعذر رفع الصورة حالياً — حاول مجدداً بعد قليل.")
-    # تنظيف الرابط احترازياً
+        raise RuntimeError(f"تعذر رفع الصورة: استجابة غير متوقعة ({text[:64]})")
     parsed = urllib.parse.urlparse(text)
     if parsed.netloc != "files.catbox.moe":
-        raise RuntimeError("تعذر رفع الصورة حالياً — حاول مجدداً بعد قليل.")
+        raise RuntimeError("تعذر رفع الصورة: رابط غير متوقع")
     return text
+
+
+def upload_to_catbox(file_bytes: bytes, filename: str = "image.jpg") -> str:
+    """ارفع بايتات صورة على Catbox وأرجع الرابط المباشر.
+
+    تعيد Raise RuntimeError إذا فشل الرفع بعد إعادة المحاولة.
+    """
+    last_error = None
+    for attempt in range(1, UPLOAD_RETRIES + 1):
+        try:
+            return _post_catbox(file_bytes, filename)
+        except Exception as exc:
+            last_error = exc
+            logger.warning(
+                "catbox upload attempt %d/%d failed: %s",
+                attempt,
+                UPLOAD_RETRIES,
+                exc,
+            )
+            if attempt < UPLOAD_RETRIES:
+                time.sleep(BACKOFF_BASE * (2 ** (attempt - 1)))
+
+    logger.error(
+        "catbox upload permanently failed after %d attempts: %s",
+        UPLOAD_RETRIES,
+        last_error,
+    )
+    raise RuntimeError("تعذر رفع الصورة حالياً — حاول مجدداً بعد قليل.")
