@@ -13,7 +13,7 @@ import uuid
 logger = logging.getLogger(__name__)
 
 CATBOX_API_URL = "https://catbox.moe/user/api.php"
-TIMEOUT = 25  # ثانية
+TIMEOUT = 8  # ثانية — يبقى زمن المحاولات كلهًا أقل من مهلة طلب السيرفر (~30ث)
 UPLOAD_RETRIES = 3        # محاولة إعادة الرفع في حال فشل مؤقت
 BACKOFF_BASE = 1.0        # ثانية (مضاعفة كل محاولة)
 

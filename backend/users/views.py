@@ -277,8 +277,21 @@ class AvatarUploadView(APIView):
 
         try:
             url = upload_to_catbox(buf.getvalue(), "avatar.jpg")
-        except RuntimeError as exc:
-            return Response({"detail": str(exc)}, status=502)
+        except RuntimeError:
+            # فشل Catbox بعد إعادة المحاولة: نحفظ الصورة محليًا حتى لا تُفقد
+            # (نفس منطق مرفقات الرسائل) — والعرض يتم من /media/ تلقائيًا.
+            profile = Profile.objects.get_or_create(user=request.user)[0]
+            if profile.avatar:
+                try:
+                    profile.avatar.delete(save=False)
+                except Exception:
+                    pass
+            profile.avatar_url = ""
+            profile.avatar.save(
+                "avatar.jpg", ContentFile(buf.getvalue()), save=False
+            )
+            profile.save(update_fields=["avatar", "avatar_url"])
+            return Response({"avatar_url": profile.avatar.url})
 
         profile = Profile.objects.get_or_create(user=request.user)[0]
         # حذف أي ملف محلي قديم (تنظيف نهائي) والاعتماد على الرابط

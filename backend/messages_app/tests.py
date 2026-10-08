@@ -316,6 +316,55 @@ class SendingRegressionTests(TestCase):
         recipient.refresh_from_db()
         self.assertIsNotNone(recipient.last_seen_at)
 
+    def test_image_saved_locally_when_catbox_fails(self):
+        """Catbox outage must NOT lose the attachment: the image falls back
+        to local storage and stays served via the recipient-only endpoint."""
+        import tempfile
+        from io import BytesIO
+        from unittest import mock
+
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        recipient = self._recipient()
+        self._login_sender()
+        buf = BytesIO()
+        Image.new("RGB", (32, 32), "red").save(buf, format="JPEG")
+        upload = SimpleUploadedFile(
+            "b.jpg", buf.getvalue(), content_type="image/jpeg"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            with override_settings(MEDIA_ROOT=tmp):
+                with mock.patch(
+                    "common.catbox.upload_to_catbox",
+                    side_effect=RuntimeError("تعذر رفع الصورة"),
+                ):
+                    resp = self.client.post(
+                        reverse("messages:send"),
+                        data={
+                            "username": "ahmed",
+                            "message": "صورة محلي",
+                            "image": upload,
+                        },
+                        format="multipart",
+                    )
+                self.assertEqual(resp.status_code, 201, resp.data)
+
+                msg = Message.objects.get(recipient=recipient)
+                self.assertTrue(bool(msg.image))
+                self.assertFalse(msg.image_url)
+
+                # The recipient can still open the local fallback file.
+                self.client.force_login(recipient)
+                resp = self.client.get(
+                    reverse("messages:image", kwargs={"pk": msg.pk})
+                )
+                self.assertEqual(resp.status_code, 200)
+                # Consume + close so the file handle doesn't block the
+                # TemporaryDirectory cleanup on Windows (WinError 32).
+                b"".join(resp.streaming_content)
+                resp.close()
+
 
 @override_settings(
     RATE_LIMIT_PER_MINUTE=10**6, RATE_LIMIT_PER_HOUR=10**6
@@ -371,3 +420,40 @@ class AvatarRemoveTests(TestCase):
             self.client.delete(reverse("settings:avatar")).status_code,
             403,
         )
+
+    def test_avatar_saved_locally_when_catbox_fails(self):
+        """Catbox outage must NOT 502 the avatar upload: it falls back to
+        local storage (served from /media/) instead of failing."""
+        import tempfile
+        from io import BytesIO
+        from unittest import mock
+
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from users.models import Profile
+
+        me = User.objects.create_user(username="ahmed", password="Secret-12345")
+        self.client.force_login(me)
+        buf = BytesIO()
+        Image.new("RGB", (32, 32), "green").save(buf, format="JPEG")
+        upload = SimpleUploadedFile(
+            "me.jpg", buf.getvalue(), content_type="image/jpeg"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            with override_settings(MEDIA_ROOT=tmp):
+                with mock.patch(
+                    "common.catbox.upload_to_catbox",
+                    side_effect=RuntimeError("تعذر رفع الصورة"),
+                ):
+                    resp = self.client.post(
+                        reverse("settings:avatar"),
+                        data={"avatar": upload},
+                        format="multipart",
+                    )
+                self.assertEqual(resp.status_code, 200, resp.data)
+
+                profile = Profile.objects.get(user=me)
+                self.assertTrue(bool(profile.avatar))
+                self.assertFalse(profile.avatar_url)
+                self.assertTrue(resp.data.get("avatar_url"))
