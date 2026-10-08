@@ -143,3 +143,51 @@ class EmailNotificationTest(TestCase):
         self.assertIn("رسالة جديدة", mail.outbox[0].subject)
         # Privacy: the mail never contains the message body.
         self.assertNotIn("بصراحة أنت رائع!", mail.outbox[0].body)
+
+
+@override_settings(RATE_LIMIT_PER_MINUTE=10**6, RATE_LIMIT_PER_HOUR=10**6)
+class ToggleAnonymousTests(TestCase):
+    """إيقاف استقبال الرسائل ثم إعادة تفعيله يجب أن يعمل ذهاباً وإياباً."""
+
+    def test_toggle_off_and_back_on(self):
+        me = User.objects.create_user(username="ahmed", password="Secret-12345")
+        User.objects.create_user(username="sara", password="Secret-12345")
+        self.client.force_login(me)
+
+        # الحالة الافتراضية: يستقبل
+        self.assertTrue(me.accept_anonymous)
+        # /me ترجع الحالة للواجهة
+        self.assertTrue(self.client.get(reverse("auth:me")).data["accept_anonymous"])
+
+        # 1) إيقاف
+        r = self.client.post(reverse("settings:toggle-anonymous"))
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(r.data["accept_anonymous"])
+        me.refresh_from_db()
+        self.assertFalse(me.accept_anonymous)
+
+        # المرسل يُرفض أثناء الإيقاف
+        self.client.force_login(User.objects.get(username="sara"))
+        denied = self.client.post(
+            reverse("messages:send"),
+            data={"username": "ahmed", "message": "مرحبا"},
+            content_type="application/json",
+        )
+        self.assertEqual(denied.status_code, 403)
+
+        # 2) إعادة التفعيل — وهنا كانت المشكلة
+        self.client.force_login(me)
+        r = self.client.post(reverse("settings:toggle-anonymous"))
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.data["accept_anonymous"])
+        me.refresh_from_db()
+        self.assertTrue(me.accept_anonymous)
+
+        # المرسل يُقبل بعد إعادة التفعيل
+        self.client.force_login(User.objects.get(username="sara"))
+        ok = self.client.post(
+            reverse("messages:send"),
+            data={"username": "ahmed", "message": "مرحبا مجدداً"},
+            content_type="application/json",
+        )
+        self.assertEqual(ok.status_code, 201)

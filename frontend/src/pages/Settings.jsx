@@ -162,7 +162,18 @@ export default function SettingsPage() {
     );
   };
 
-  const toggle = () => run(() => toggleAnonymous(), null);
+  const toggle = () =>
+    run(async () => {
+      const res = await toggleAnonymous();
+      // حدّث حالة الشاشة فوراً من رد السيرفر حتى يرى المستخدم التغيير
+      const val = res?.data?.accept_anonymous;
+      if (typeof val === "boolean") {
+        setMe((prev) => (prev ? { ...prev, accept_anonymous: val } : prev));
+        setNotice(
+          val ? "تم تفعيل استقبال الرسائل ✅" : "تم إيقاف استقبال الرسائل مؤقتاً ⏸️"
+        );
+      }
+    }, null);
 
   async function signOut() {
     try {
@@ -403,8 +414,18 @@ export default function SettingsPage() {
           <button disabled={busy} type="submit">حفظ إعدادات الخصوصية</button>
         </form>
         <div className="row">
+          <div className="toggle-status">
+            <span className="hint">حالة الاستقبال الآن:</span>{" "}
+            <strong>
+              {me?.accept_anonymous === false
+                ? "⏸️ متوقف مؤقتاً"
+                : "✅ يعمل ويستقبل الرسائل"}
+            </strong>
+          </div>
           <button onClick={toggle} type="button" disabled={busy}>
-            إيقاف/استئناف استقبال الرسائل
+            {me?.accept_anonymous === false
+              ? "▶️ تفعيل استقبال الرسائل"
+              : "⏸️ إيقاف استقبال الرسائل مؤقتاً"}
           </button>
           <button onClick={signOut} type="button" className="danger">
             تسجيل الخروج

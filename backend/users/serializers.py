@@ -130,6 +130,7 @@ class MeSerializer(serializers.ModelSerializer):
         fields = [
             "id", "username", "email", "email_verified",
             "is_verified", "shareable_url", "created_at",
+            "accept_anonymous",
         ]
 
     def get_is_verified(self, obj):
