@@ -151,15 +151,18 @@ export default function SettingsPage() {
 
   const savePrivacy = (e) => {
     e.preventDefault();
-    run(
-      () =>
-        patchSettings({
-          allow_anonymous: settings.allow_anonymous,
-          gap_minutes: Number(settings.gap_minutes) || 0,
-          notify_new_message: settings.notify_new_message,
-        }),
-      "تم حفظ إعدادات الخصوصية."
-    );
+    run(async () => {
+      const res = await patchSettings({
+        allow_anonymous: settings.allow_anonymous,
+        gap_minutes: Number(settings.gap_minutes) || 0,
+        notify_new_message: settings.notify_new_message,
+      });
+      // مزامنة فورية: checkbox الخصوصية = زر استقبال الرسائل
+      const val = res?.data?.allow_anonymous;
+      if (typeof val === "boolean") {
+        setMe((prev) => (prev ? { ...prev, accept_anonymous: val } : prev));
+      }
+    }, "تم حفظ إعدادات الخصوصية.");
   };
 
   const toggle = () =>
@@ -169,6 +172,10 @@ export default function SettingsPage() {
       const val = res?.data?.accept_anonymous;
       if (typeof val === "boolean") {
         setMe((prev) => (prev ? { ...prev, accept_anonymous: val } : prev));
+        // مزامنة checkbox الخصوصية فوراً حتى لا يتعارض مع الحالة
+        setSettings((prev) =>
+          prev ? { ...prev, allow_anonymous: val } : prev
+        );
         setNotice(
           val ? "تم تفعيل استقبال الرسائل ✅" : "تم إيقاف استقبال الرسائل مؤقتاً ⏸️"
         );

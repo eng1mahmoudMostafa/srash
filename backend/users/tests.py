@@ -191,3 +191,39 @@ class ToggleAnonymousTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(ok.status_code, 201)
+
+    def test_privacy_checkbox_and_toggle_stay_in_sync(self):
+        """checkbox الخصوصية وزر الاستقبال نظام واحد موحّد (لا تعارض)."""
+        from users.models import UserSettings
+
+        u = User.objects.create_user(username="mona", password="Secret-12345")
+        self.client.force_login(u)
+
+        # 1) إلغاء checkbox "السماح باستقبال الرسائل المجهولة" وحفظه
+        r = self.client.patch(
+            reverse("settings:settings"),
+            data={"allow_anonymous": False},
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(r.data["allow_anonymous"])
+        u.refresh_from_db()
+        # المزامنة: الحقل الفعلي accept_anonymous (الذي يفحصه الإرسال) صار False
+        self.assertFalse(u.accept_anonymous)
+        # والواجهة تعرض الحالة نفسها
+        self.assertFalse(
+            self.client.get(reverse("auth:me")).data["accept_anonymous"]
+        )
+
+        # 2) زر التبديل يعكس القيمة ويُزامن checkbox معه
+        r = self.client.post(reverse("settings:toggle-anonymous"))
+        self.assertTrue(r.data["accept_anonymous"])
+        u.refresh_from_db()
+        self.assertTrue(u.accept_anonymous)
+        us = UserSettings.objects.get(user=u)
+        self.assertTrue(us.allow_anonymous)  # checkbox تبع الزر فوراً
+        self.assertTrue(
+            self.client.get(reverse("settings:settings")).data[
+                "allow_anonymous"
+            ]
+        )

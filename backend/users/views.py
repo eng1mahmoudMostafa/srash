@@ -147,6 +147,13 @@ class UserSettingsView(APIView):
         serializer = UserSettingsSerializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        # مزامنة: checkbox "السماح بالرسائل المجهولة" هو نفسه زر استقبال
+        # الرسائل — كلاهما يتحكم في الحقل الفعلي accept_anonymous الذي
+        # يفحصه إرسال الرسائل، حتى لا يظهر تعارض بين الحالة والزر.
+        user = request.user
+        if user.accept_anonymous != instance.allow_anonymous:
+            user.accept_anonymous = instance.allow_anonymous
+            user.save(update_fields=["accept_anonymous", "updated_at"])
         return Response(serializer.data)
 
 
@@ -159,6 +166,11 @@ class ToggleAnonymousView(APIView):
         user = request.user
         user.accept_anonymous = not user.accept_anonymous
         user.save(update_fields=["accept_anonymous", "updated_at"])
+        # مزامنة checkbox الخصوصية مع الزر (نظام واحد موحّد).
+        us, _ = UserSettings.objects.get_or_create(user=user)
+        if us.allow_anonymous != user.accept_anonymous:
+            us.allow_anonymous = user.accept_anonymous
+            us.save(update_fields=["allow_anonymous"])
         return Response({"accept_anonymous": user.accept_anonymous})
 
 
