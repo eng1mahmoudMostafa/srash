@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchCsrf, handleError } from "../api/client";
 import { register } from "../api/endpoints";
+import { toast } from "../toast";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -19,9 +20,12 @@ export default function Register() {
     try {
       await fetchCsrf();
       await register(username, password, email.trim(), fullName.trim());
+      toast("✅ تم إنشاء حسابك بنجاح.");
       navigate("/inbox");
     } catch (err) {
-      setError(handleError(err));
+      const m = handleError(err);
+      setError(m);
+      toast(m, "err");
     } finally {
       setBusy(false);
     }

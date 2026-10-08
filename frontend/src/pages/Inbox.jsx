@@ -10,6 +10,7 @@ import {
   reportMessage,
 } from "../api/endpoints";
 import ShareRow from "../components/ShareRow";
+import { toast } from "../toast";
 
 export default function Inbox() {
   const [messages, setMessages] = useState([]);
@@ -45,9 +46,12 @@ export default function Inbox() {
     try {
       await fetchCsrf();
       await deleteMessage(id);
+      toast("تم حذف الرسالة.");
       await load();
     } catch (err) {
-      setError(handleError(err));
+      const m = handleError(err);
+      setError(m);
+      toast(m, "err");
     }
   }
 
@@ -60,9 +64,12 @@ export default function Inbox() {
       await replyToMessage(id, text);
       setReplyFor(null);
       setReplyText("");
+      toast("✅ تم إرسال ردك.");
       await load();
     } catch (err) {
-      setError(handleError(err));
+      const m = handleError(err);
+      setError(m);
+      toast(m, "err");
     } finally {
       setReplyBusy(false);
     }

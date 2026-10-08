@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchCsrf, handleError } from "../api/client";
 import { login } from "../api/endpoints";
+import { toast } from "../toast";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -17,9 +18,12 @@ export default function Login() {
     try {
       await fetchCsrf();
       await login(username, password);
+      toast("✅ تم تسجيل الدخول.");
       navigate("/inbox");
     } catch (err) {
-      setError(handleError(err));
+      const m = handleError(err);
+      setError(m);
+      toast(m, "err");
     } finally {
       setBusy(false);
     }

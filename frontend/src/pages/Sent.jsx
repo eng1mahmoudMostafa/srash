@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchCsrf, handleError } from "../api/client";
 import { deleteForRecipient, fetchMe, fetchSent } from "../api/endpoints";
+import { toast } from "../toast";
 
 export default function Sent() {
   const [messages, setMessages] = useState([]);
@@ -29,9 +30,12 @@ export default function Sent() {
       await fetchCsrf();
       await deleteForRecipient(id);
       setNotice("تم حذف الرسالة من الطرف الآخر بنجاح.");
+      toast("تم حذف الرسالة من الطرف الآخر بنجاح.");
       await load();
     } catch (err) {
-      setError(handleError(err));
+      const m = handleError(err);
+      setError(m);
+      toast(m, "err");
     }
   }
 

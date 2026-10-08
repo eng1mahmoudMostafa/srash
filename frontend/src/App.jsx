@@ -43,6 +43,45 @@ function GlobalBusy() {
   );
 }
 
+// إشعارات ثابتة أعلى الشاشة (نجاح/خطأ) — تظهر فورًا مهما كان موضع التمرير،
+// فلا يحتاج المستخدم على الموبايل أن يسحب الصفحة للأعلى لرؤيتها.
+function Toasts() {
+  const [items, setItems] = useState([]);
+
+  useEffect(() => {
+    let seq = 0;
+    const onToast = (e) => {
+      const detail = e.detail || {};
+      if (!detail.text) return;
+      const id = ++seq;
+      setItems((prev) => [
+        ...prev,
+        {
+          id,
+          text: String(detail.text),
+          type: detail.type === "err" ? "err" : "ok",
+        },
+      ]);
+      window.setTimeout(() => {
+        setItems((prev) => prev.filter((t) => t.id !== id));
+      }, 4500);
+    };
+    window.addEventListener("srash:toast", onToast);
+    return () => window.removeEventListener("srash:toast", onToast);
+  }, []);
+
+  if (!items.length) return null;
+  return (
+    <div className="toasts" role="status" aria-live="polite">
+      {items.map((t) => (
+        <div key={t.id} className={`toast ${t.type === "err" ? "toast-err" : ""}`}>
+          {t.text}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Nav() {
   const [theme, setTheme] = useState(() => {
     try {
@@ -162,6 +201,7 @@ export default function App() {
   return (
     <div className="app">
       <GlobalBusy />
+      <Toasts />
       <Nav />
       <main>
         <Routes>

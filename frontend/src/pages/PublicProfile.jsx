@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { fetchCsrf, handleError } from "../api/client";
 import { fetchMe, fetchPublicProfile, sendMessage } from "../api/endpoints";
 import ShareRow from "../components/ShareRow";
+import { toast } from "../toast";
 
 // رسائل جاهزة للبدء السريع — بضغطة واحدة تُملأ رسالة صريحة ولبقة.
 const SUGGESTIONS = [
@@ -62,8 +63,11 @@ export default function PublicProfile() {
       await fetchCsrf();
       await sendMessage(username, message, senderName.trim(), image);
       setSent(true);
+      toast("✅ تم إرسال رسالتك بنجاح.");
     } catch (err) {
-      setError(handleError(err));
+      const m = handleError(err);
+      setError(m);
+      toast(m, "err");
     }
   }
 

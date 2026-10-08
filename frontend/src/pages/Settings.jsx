@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchCsrf, handleError } from "../api/client";
+import { toast } from "../toast";
 import {
   fetchMe,
   fetchMyProfile,
@@ -88,10 +89,15 @@ export default function SettingsPage() {
     try {
       await fetchCsrf();
       await action();
-      if (okMessage) setNotice(okMessage);
+      if (okMessage) {
+        setNotice(okMessage);
+        toast(okMessage);
+      }
       load();
     } catch (err) {
-      setError(handleError(err));
+      const m = handleError(err);
+      setError(m);
+      toast(m, "err");
     } finally {
       setBusy(false);
     }
@@ -129,10 +135,12 @@ export default function SettingsPage() {
       .then(() => updateEmail(value))
       .then(() => {
         setEmailNotice("✅ تم ربط بريدك الإلكتروني بحسابك بنجاح.");
+        toast("✅ تم ربط بريدك الإلكتروني بحسابك بنجاح.");
         load();
       })
       .catch((err) => {
         const m = handleError(err);
+        toast(m, "err");
         setEmailError(
           /مستخدم بالفعل/.test(m)
             ? m +
