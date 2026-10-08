@@ -30,9 +30,7 @@ export default function SettingsPage() {
   const [emailInput, setEmailInput] = useState("");
   const [transferNote, setTransferNote] = useState("");
   const [emailError, setEmailError] = useState("");
-  const [emailNotice, setEmailNotice] = useState("");
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
@@ -58,7 +56,7 @@ export default function SettingsPage() {
   // نسخ رقم التحويل (فودافون كاش) إلى الحافظة
   const copyNumber = () => {
     const num = "01142634188";
-    const done = () => setNotice("تم نسخ رقم التحويل ✅");
+    const done = () => toast("تم نسخ رقم التحويل ✅");
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(num).then(done).catch(() => {});
     } else {
@@ -76,7 +74,7 @@ export default function SettingsPage() {
   const openInstaPay = () => {
     window.location.href = "instapay://";
     window.setTimeout(() => {
-      setNotice(
+      toast(
         "لو لم يفتح تطبيق إنستاباي تلقائيًا، افتحه يدويًا وحوّل على الرقم الموضح."
       );
     }, 1500);
@@ -85,12 +83,10 @@ export default function SettingsPage() {
   async function run(action, okMessage) {
     setBusy(true);
     setError("");
-    setNotice("");
     try {
       await fetchCsrf();
       await action();
       if (okMessage) {
-        setNotice(okMessage);
         toast(okMessage);
       }
       load();
@@ -125,16 +121,13 @@ export default function SettingsPage() {
     const value = emailInput.trim();
     if (!value) {
       setEmailError("اكتب بريدك الإلكتروني أولًا.");
-      setEmailNotice("");
       return;
     }
     setBusy(true);
     setEmailError("");
-    setEmailNotice("");
     fetchCsrf()
       .then(() => updateEmail(value))
       .then(() => {
-        setEmailNotice("✅ تم ربط بريدك الإلكتروني بحسابك بنجاح.");
         toast("✅ تم ربط بريدك الإلكتروني بحسابك بنجاح.");
         load();
       })
@@ -184,7 +177,7 @@ export default function SettingsPage() {
         setSettings((prev) =>
           prev ? { ...prev, allow_anonymous: val } : prev
         );
-        setNotice(
+        toast(
           val ? "تم تفعيل استقبال الرسائل ✅" : "تم إيقاف استقبال الرسائل مؤقتاً ⏸️"
         );
       }
@@ -213,7 +206,6 @@ export default function SettingsPage() {
   return (
     <section>
       {error && <p className="error">{error}</p>}
-      {notice && <p className="success-box">{notice}</p>}
 
       {/* ---- مؤشر جاري التعديل ---- */}
       {busy && (
@@ -321,7 +313,6 @@ export default function SettingsPage() {
           {emailError && (
             <p className="error warn-email" role="alert">{emailError}</p>
           )}
-          {emailNotice && <p className="success-box">{emailNotice}</p>}
         </form>
       </section>
 
