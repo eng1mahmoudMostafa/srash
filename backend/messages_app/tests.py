@@ -366,6 +366,46 @@ class SendingRegressionTests(TestCase):
                 resp.close()
 
 
+class ImgbbFallbackTests(TestCase):
+    """لما Catbox يرفض الـ IP (412 من داتا سنتر) ننتقل لـ ImgBB تلقائيًا."""
+
+    def test_uses_imgbb_when_catbox_fails_and_key_set(self):
+        import os
+        from unittest import mock
+
+        from common import catbox as catbox_mod
+
+        with mock.patch.dict(os.environ, {"IMGBB_KEY": "test-key-123"}):
+            with mock.patch.object(
+                catbox_mod, "_post_catbox", side_effect=RuntimeError("HTTP Error 412")
+            ):
+                with mock.patch.object(
+                    catbox_mod,
+                    "_post_imgbb",
+                    return_value="https://i.ibb.co/abc/t.jpg",
+                ) as imgbb:
+                    with mock.patch("common.catbox.time.sleep"):
+                        url = catbox_mod.upload_to_catbox(b"jpegbytes", "t.jpg")
+        self.assertEqual(url, "https://i.ibb.co/abc/t.jpg")
+        imgbb.assert_called_once_with(b"jpegbytes", "t.jpg")
+
+    def test_raises_without_imgbb_key_so_views_save_locally(self):
+        import os
+        from unittest import mock
+
+        from common import catbox as catbox_mod
+
+        with mock.patch.dict(os.environ, {"IMGBB_KEY": ""}):
+            with mock.patch.object(
+                catbox_mod, "_post_catbox", side_effect=RuntimeError("HTTP Error 412")
+            ):
+                with mock.patch.object(catbox_mod, "_post_imgbb") as imgbb:
+                    with mock.patch("common.catbox.time.sleep"):
+                        with self.assertRaises(RuntimeError):
+                            catbox_mod.upload_to_catbox(b"jpegbytes", "t.jpg")
+        imgbb.assert_not_called()
+
+
 @override_settings(
     RATE_LIMIT_PER_MINUTE=10**6, RATE_LIMIT_PER_HOUR=10**6
 )
