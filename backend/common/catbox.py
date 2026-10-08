@@ -5,6 +5,7 @@
 النتيجة: صفر مساحة تخزين صور على PythonAnywhere.
 """
 import logging
+import os
 import time
 import urllib.parse
 import urllib.request
@@ -27,10 +28,13 @@ def _post_catbox(file_bytes: bytes, filename: str) -> str:
         f'Content-Disposition: form-data; name="reqtype"{CRLF}{CRLF}'
         f"fileupload{CRLF}"
         f"--{boundary}{CRLF}"
-        # Catbox يرفض الطلبات بدون حقل userhash بـ 412 (القيمة الفاضية
-        # تكفي للرفع المجهول) — خصوصًا من IP سيرفرات زي PythonAnywhere.
+        # هوية المُرفِع: من IP سيرفرات (زي PythonAnywhere) Catbox بيرفض
+        # الرفع المجهول بـ 412 "Invalid uploader" — لازم userhash حقيقي
+        # بتاع حساب مجاني. نقرؤه من متغير البيئة CATBOX_USERHASH عشان
+        # متتحطش في الريبو (الـ userhash سر: أي حد معاه يقدر يحذف الصور).
+        # لو المتغير مش مضبوط نبعته فاضي (رفع مجهول — شغال من IPs عادية).
         f'Content-Disposition: form-data; name="userhash"{CRLF}{CRLF}'
-        f"{CRLF}"
+        f"{os.environ.get('CATBOX_USERHASH', '').strip()}{CRLF}"
         f"--{boundary}{CRLF}"
         f'Content-Disposition: form-data; name="fileToUpload"; filename="{filename}"{CRLF}'
         f"Content-Type: image/jpeg{CRLF}{CRLF}"
