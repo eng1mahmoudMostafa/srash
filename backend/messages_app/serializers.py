@@ -170,6 +170,7 @@ class SendMessageSerializer(serializers.Serializer):
                 if sender_user is not None
                 else ""
             ),
+            image=validated_data.get("image"),
             image_url=validated_data.get("image_url", ""),
             status=status,
         )

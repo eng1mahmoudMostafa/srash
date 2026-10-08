@@ -24,11 +24,11 @@ def _post_catbox(file_bytes: bytes, filename: str) -> str:
     boundary = f"----catbox{uuid.uuid4().hex}"
     body = (
         f"--{boundary}{CRLF}"
-        'Content-Disposition: form-data; name="reqtype"{CRLF}{CRLF}'
-        "fileupload{CRLF}"
+        f'Content-Disposition: form-data; name="reqtype"{CRLF}{CRLF}'
+        f"fileupload{CRLF}"
         f"--{boundary}{CRLF}"
         f'Content-Disposition: form-data; name="fileToUpload"; filename="{filename}"{CRLF}'
-        "Content-Type: image/jpeg{CRLF}{CRLF}"
+        f"Content-Type: image/jpeg{CRLF}{CRLF}"
     ).encode() + file_bytes + f"{CRLF}--{boundary}--{CRLF}".encode()
 
     req = urllib.request.Request(
