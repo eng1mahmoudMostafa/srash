@@ -93,8 +93,15 @@ def send_password_reset_email(user):
 
 def notify_new_message(recipient_user):
     """Privacy-safe alert: never includes the message body or sender."""
-    us = getattr(recipient_user, "settings", None)
-    if us is None or not us.notify_new_message or not recipient_user.email:
+    if not recipient_user.email:
+        return False
+    from users.models import UserSettings
+
+    # get_or_create: accounts without a settings row (created before the
+    # setting existed, or via admin) fall back to the default (ON) instead
+    # of silently never receiving the alert.
+    us, _ = UserSettings.objects.get_or_create(user=recipient_user)
+    if not us.notify_new_message:
         return False
     display = getattr(recipient_user, "profile", None)
     display = getattr(display, "display_name", "") or recipient_user.username
