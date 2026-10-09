@@ -13,8 +13,9 @@ export default function Home() {
   }, []);
 
   return (
-    <section className="card">
-      <h1>صراحة بلا كذب</h1>
+    <section className="card hero">
+      <p className="hero-eyebrow">✦ منصّة الرسائل المجهولة الأولى ✦</p>
+      <h1 className="hero-title">صراحة بلا كذب</h1>
       <p className="lead">
         استقبل رسائل مجهولة بأمان وشارك رابطك — بلا كذب، بلا هوية.
       </p>

@@ -1,10 +1,23 @@
 :root {
-  --bg: #0f172a;
-  --card: #1e293b;
+  /* لوحة الألوان الفاخرة */
+  --bg: #0a0f1e;
+  --card: #141d33;
   --text: #f1f5f9;
-  --muted: #94a3b8;
+  --muted: #9aa8bf;
   --accent: #22c55e;
+  --accent-2: #4ade80;
   --danger: #ef4444;
+  --gold: #e9c46a;
+  --gold-2: #f7d98a;
+  --gold-deep: #b8892b;
+  --glass: rgba(255, 255, 255, 0.04);
+  --card-border: rgba(255, 255, 255, 0.09);
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  --shadow-gold: 0 8px 30px rgba(233, 196, 106, 0.18);
+  --ring: rgba(34, 197, 94, 0.32);
+  --font-body: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, Arial, sans-serif;
+  --font-display: "Reem Kufi", "IBM Plex Sans Arabic", "Segoe UI", Tahoma, Arial,
+    sans-serif;
 }
 
 * {
@@ -13,8 +26,13 @@
 
 body {
   margin: 0;
-  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
-  background: var(--bg);
+  font-family: var(--font-body);
+  background:
+    radial-gradient(1100px 600px at 110% -10%, rgba(34, 197, 94, 0.14), transparent 60%),
+    radial-gradient(900px 520px at -10% 4%, rgba(233, 196, 106, 0.12), transparent 55%),
+    radial-gradient(950px 720px at 50% 120%, rgba(59, 130, 246, 0.12), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--text);
   min-height: 100vh;
   line-height: 1.6;
@@ -33,26 +51,37 @@ body {
 .nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 6px;
   align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid #334155;
-  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: var(--glass);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  margin-bottom: 18px;
+  position: sticky;
+  top: 8px;
+  z-index: 500;
 }
 
 .nav a {
   color: var(--text);
   text-decoration: none;
-  padding: 6px 10px;
-  border-radius: 8px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.92rem;
   transition: background 0.15s ease, color 0.15s ease;
 }
 .nav a:hover {
   background: rgba(148, 163, 184, 0.16);
 }
 .nav a.active {
-  color: var(--accent);
-  background: rgba(34, 197, 94, 0.14);
+  color: #05130c;
+  background: linear-gradient(135deg, var(--accent-2), var(--accent));
+  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.3);
 }
 
 .nav-auth {
@@ -62,15 +91,71 @@ body {
 }
 
 .card {
-  background: var(--card);
-  border-radius: 14px;
-  padding: 20px;
-  margin-bottom: 14px;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.16);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012)),
+    var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  padding: 22px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.card:hover {
+  border-color: rgba(233, 196, 106, 0.28);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.3px;
 }
 
 h1 {
   margin-top: 0;
+}
+
+/* عنوان رئيسي فاخر بتدرّج ذهبي */
+.hero-title {
+  font-size: 1.9rem;
+  line-height: 1.35;
+  background: linear-gradient(135deg, var(--gold-2), var(--gold) 45%, var(--gold-deep));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+@supports not ((background-clip: text) or (-webkit-background-clip: text)) {
+  .hero-title {
+    color: var(--gold);
+    -webkit-text-fill-color: var(--gold);
+  }
+}
+
+/* غلاف الصفحة الرئيسية الفاخر */
+.hero {
+  text-align: center;
+}
+.hero .form,
+.hero .row {
+  max-width: 460px;
+  margin-inline: auto;
+}
+.hero-eyebrow {
+  color: var(--gold-2);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  margin: 0 0 6px;
+  text-transform: none;
+}
+.hero .lead {
+  max-width: 46ch;
+  margin-inline: auto;
 }
 
 .lead {
@@ -98,46 +183,52 @@ label.check {
 
 input,
 textarea {
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid #334155;
-  background: #0f172a;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  background: rgba(6, 10, 24, 0.55);
   color: var(--text);
   font: inherit;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 input:focus,
 textarea:focus,
 select:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+  box-shadow: 0 0 0 3px var(--ring);
+  background: rgba(6, 10, 24, 0.7);
 }
 
 button {
-  padding: 10px 16px;
+  padding: 11px 18px;
   border: none;
-  border-radius: 8px;
-  background: var(--accent);
-  color: #04110a;
-  font-weight: 600;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent-2), var(--accent));
+  color: #05130c;
+  font-weight: 700;
+  font-family: var(--font-body);
   cursor: pointer;
-  transition: transform 0.06s ease, filter 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 6px 18px rgba(34, 197, 94, 0.28);
+  transition: transform 0.07s ease, filter 0.15s ease, box-shadow 0.18s ease;
 }
 button:hover {
-  filter: brightness(1.06);
+  filter: brightness(1.07);
+  box-shadow: 0 10px 26px rgba(34, 197, 94, 0.34);
 }
 button:active {
   transform: translateY(1px) scale(0.99);
 }
 button:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 button.danger {
-  background: var(--danger);
+  background: linear-gradient(135deg, #f87171, var(--danger));
   color: #fff;
+  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.28);
 }
 
 .row {
@@ -153,19 +244,22 @@ button.danger {
 }
 
 .success-box {
-  background: #14532d;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.22), rgba(20, 83, 45, 0.55));
   color: #bbf7d0;
-  padding: 10px;
-  border-radius: 8px;
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  padding: 14px;
+  border-radius: 14px;
 }
 
 .badge {
   display: inline-block;
-  background: #14532d;
-  color: #bbf7d0;
-  padding: 6px 12px;
+  background: linear-gradient(135deg, rgba(233, 196, 106, 0.18), rgba(233, 196, 106, 0.05));
+  color: var(--gold-2);
+  border: 1px solid rgba(233, 196, 106, 0.4);
+  padding: 7px 14px;
   border-radius: 999px;
   font-size: 0.9rem;
+  font-weight: 600;
   margin-bottom: 12px;
 }
 
@@ -219,6 +313,11 @@ select:focus-visible,
 }
 
 .avatar-lg {
+  border: 2px solid rgba(233, 196, 106, 0.5);
+  box-shadow: 0 6px 24px rgba(233, 196, 106, 0.22);
+}
+
+.avatar-lg {
   width: 72px;
   height: 72px;
 }
@@ -235,12 +334,13 @@ select:focus-visible,
 /* ---- شارات ---- */
 .badge-verified {
   display: inline-block;
-  background: #1d4ed8;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
   color: #fff;
   font-size: 0.72rem;
-  padding: 3px 10px;
+  padding: 3px 11px;
   border-radius: 999px;
-  font-weight: 600;
+  font-weight: 700;
+  box-shadow: 0 3px 10px rgba(59, 130, 246, 0.35);
 }
 
 /* ---- سطر المرسل في الرسائل ---- */
@@ -256,8 +356,11 @@ select:focus-visible,
 
 /* ---- صندوق الاشتراك ---- */
 .premium-box {
-  background: #172554;
-  border: 1px solid #1d4ed8;
+  background:
+    linear-gradient(180deg, rgba(233, 196, 106, 0.1), rgba(233, 196, 106, 0.02)),
+    var(--card);
+  border: 1px solid rgba(233, 196, 106, 0.4);
+  box-shadow: var(--shadow), var(--shadow-gold);
 }
 
 .premium-box ul {
@@ -267,8 +370,9 @@ select:focus-visible,
 
 .section-title {
   margin-top: 0;
-  font-size: 1.05rem;
-  color: var(--accent);
+  font-size: 1.12rem;
+  color: var(--gold-2);
+  font-family: var(--font-display);
 }
 
 /* ---- الفوتر (حقوق الملكية) ---- */
@@ -286,8 +390,18 @@ select:focus-visible,
 }
 
 .designer-name {
-  color: #fbbf24;
+  font-family: var(--font-display);
   font-weight: 700;
+  background: linear-gradient(135deg, var(--gold-2), var(--gold) 50%, var(--gold-deep));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+@supports not ((background-clip: text) or (-webkit-background-clip: text)) {
+  .designer-name {
+    color: var(--gold);
+    -webkit-text-fill-color: var(--gold);
+  }
 }
 
 /* ---- حالة استقبال الرسائل في الإعدادات ---- */
@@ -386,21 +500,23 @@ select:focus-visible,
 }
 
 .toast {
-  background: #14532d;
-  color: #bbf7d0;
-  border: 1px solid #22c55e;
-  border-radius: 10px;
-  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(22, 101, 52, 0.95), rgba(6, 42, 24, 0.95));
+  color: #d1fae5;
+  border: 1px solid rgba(34, 197, 94, 0.55);
+  border-radius: 14px;
+  padding: 14px 18px;
   text-align: center;
-  font-weight: 600;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
-  animation: toast-in 0.25s ease;
+  font-weight: 700;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: toast-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .toast-err {
-  background: #7f1d1d;
+  background: linear-gradient(135deg, rgba(153, 27, 27, 0.95), rgba(69, 10, 10, 0.95));
   color: #fecaca;
-  border-color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.6);
 }
 
 @keyframes toast-in {
@@ -720,19 +836,43 @@ select:focus-visible,
 
 /* ---- الثيم الفاتح ---- */
 :root[data-theme="light"] {
-  --bg: #eef2f7;
+  --bg: #eef2f8;
   --card: #ffffff;
   --text: #0f172a;
   --muted: #475569;
   --accent: #16a34a;
+  --accent-2: #4ade80;
   --danger: #dc2626;
+  --gold: #b8860b;
+  --gold-2: #92600a;
+  --gold-deep: #7a5200;
+  --glass: rgba(255, 255, 255, 0.72);
+  --card-border: rgba(15, 23, 42, 0.1);
+  --shadow: 0 18px 44px rgba(15, 23, 42, 0.1);
+  --shadow-gold: 0 8px 30px rgba(184, 134, 11, 0.16);
+  --ring: rgba(22, 163, 74, 0.28);
 }
 :root[data-theme="light"] body {
-  background: var(--bg);
+  background:
+    radial-gradient(1100px 600px at 110% -10%, rgba(22, 163, 74, 0.1), transparent 60%),
+    radial-gradient(900px 520px at -10% 4%, rgba(233, 196, 106, 0.22), transparent 55%),
+    radial-gradient(950px 720px at 50% 120%, rgba(59, 130, 246, 0.1), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--text);
 }
 :root[data-theme="light"] .nav {
-  border-bottom-color: #cbd5e1;
+  border-color: var(--card-border);
+  background: var(--glass);
+}
+/* العنوان واسم المصمم: ذهبي داكن مقروء على الخلفية الفاتحة */
+:root[data-theme="light"] .hero-title {
+  background: linear-gradient(135deg, #a1670a, #b8860b 55%, #7a5200);
+}
+:root[data-theme="light"] .designer-name {
+  background: none;
+  -webkit-text-fill-color: var(--gold-deep);
+  color: var(--gold-deep);
 }
 :root[data-theme="light"] input,
 :root[data-theme="light"] textarea {
@@ -749,8 +889,9 @@ select:focus-visible,
   border: 1px solid #86efac;
 }
 :root[data-theme="light"] .badge {
-  background: #dcfce7;
-  color: #166534;
+  background: linear-gradient(135deg, rgba(233, 196, 106, 0.28), rgba(233, 196, 106, 0.12));
+  color: #7a5200;
+  border: 1px solid rgba(184, 134, 11, 0.45);
 }
 :root[data-theme="light"] .global-busy,
 :root[data-theme="light"] .busy-banner {
@@ -763,8 +904,8 @@ select:focus-visible,
   border-top-color: transparent;
 }
 :root[data-theme="light"] .premium-box {
-  background: #eff6ff;
-  border-color: #93c5fd;
+  background: linear-gradient(180deg, rgba(233, 196, 106, 0.16), rgba(233, 196, 106, 0.04));
+  border-color: rgba(184, 134, 11, 0.5);
 }
 :root[data-theme="light"] .sender-line.locked {
   color: #b45309;
