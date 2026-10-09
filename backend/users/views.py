@@ -10,6 +10,7 @@ from django.contrib.auth import (
 )
 from django.core import signing
 from django.core.files.base import ContentFile
+from django.core.mail import send_mail
 from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -155,6 +156,53 @@ class ChangePasswordView(APIView):
         request.user.save(update_fields=["password"])
         update_session_auth_hash(request, request.user)
         return Response({"detail": "تم تغيير كلمة المرور بنجاح."})
+
+
+class EmailDiagView(APIView):
+    """TEMPORARY diagnostic: shows the e-mail settings the *live* process is
+    actually using, and (with ?send=1) attempts one real SMTP send.
+
+    Protected by DJANGO_SECRET_KEY in the `k` query param so it can never be
+    probed by strangers. Never returns the password itself.
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        if request.query_params.get("k", "") != settings.SECRET_KEY:
+            return Response({"detail": "forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+        info = {
+            "backend": dj_settings.EMAIL_BACKEND,
+            "host": dj_settings.EMAIL_HOST,
+            "port": dj_settings.EMAIL_PORT,
+            "use_tls": dj_settings.EMAIL_USE_TLS,
+            "user": dj_settings.EMAIL_HOST_USER,
+            "user_len": len(dj_settings.EMAIL_HOST_USER or ""),
+            "pwd_len": len(dj_settings.EMAIL_HOST_PASSWORD or ""),
+            "pwd_has_spaces": " " in (dj_settings.EMAIL_HOST_PASSWORD or ""),
+            "from": dj_settings.DEFAULT_FROM_EMAIL,
+            "debug": dj_settings.DEBUG,
+        }
+
+        if request.query_params.get("send") == "1":
+            to = dj_settings.EMAIL_HOST_USER
+            try:
+                send_mail(
+                    subject="صراحة: اختبار SMTP من السيرفر",
+                    message=(
+                        "لو وصلتك الإيميل ده، إعدادات SMTP على السيرفر شغالة صح.\n"
+                        f"backend={dj_settings.EMAIL_BACKEND}"
+                    ),
+                    from_email=dj_settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[to],
+                    fail_silently=False,
+                )
+                info["send"] = "SENT_OK"
+            except Exception as exc:
+                info["send"] = "FAILED"
+                info["error"] = f"{type(exc).__name__}: {exc}"
+        return Response(info)
 
 
 class PasswordResetSendView(APIView):
