@@ -14,4 +14,20 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    // Split rarely-changing vendor libraries into their own chunk so they stay
+    // cached across app updates and can load in parallel with the app code.
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ["react", "react-dom", "react-dom/client"],
+          router: ["react-router-dom"],
+        },
+      },
+    },
+    // Hashed asset names already enable long-lived caching; keep source maps
+    // off in production to shave the payload.
+    sourcemap: false,
+    chunkSizeWarningLimit: 700,
+  },
 });

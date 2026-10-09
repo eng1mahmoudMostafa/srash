@@ -1,13 +1,23 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { Routes, Route, NavLink } from "react-router-dom";
-import Home from "./pages/Home";
-import Register from "./pages/Register";
-import Login from "./pages/Login";
-import PublicProfile from "./pages/PublicProfile";
-import Inbox from "./pages/Inbox";
-import Sent from "./pages/Sent";
-import SettingsPage from "./pages/Settings";
 import { fetchMe } from "./api/endpoints";
+
+// تحميل كل صفحة عند الحاجة فقط — الحزمة الأولية تصغر والصفحة الرئيسية تظهر أسرع.
+const Home = lazy(() => import("./pages/Home"));
+const Register = lazy(() => import("./pages/Register"));
+const Login = lazy(() => import("./pages/Login"));
+const PublicProfile = lazy(() => import("./pages/PublicProfile"));
+const Inbox = lazy(() => import("./pages/Inbox"));
+const Sent = lazy(() => import("./pages/Sent"));
+const SettingsPage = lazy(() => import("./pages/Settings"));
+
+function RouteFallback() {
+  return (
+    <section className="card">
+      <p className="hint">جارٍ التحميل...</p>
+    </section>
+  );
+}
 
 // شريط انتظار عام يظهر أعلى الشاشة مع أي طلب يستغرق وقتًا في الموقع كله
 function GlobalBusy() {
@@ -204,15 +214,17 @@ export default function App() {
       <Toasts />
       <Nav />
       <main>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/u/:username" element={<PublicProfile />} />
-          <Route path="/inbox" element={<Inbox />} />
-          <Route path="/sent" element={<Sent />} />
-          <Route path="/settings" element={<SettingsPage />} />
-        </Routes>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/u/:username" element={<PublicProfile />} />
+            <Route path="/inbox" element={<Inbox />} />
+            <Route path="/sent" element={<Sent />} />
+            <Route path="/settings" element={<SettingsPage />} />
+          </Routes>
+        </Suspense>
       </main>
       <Footer />
     </div>
