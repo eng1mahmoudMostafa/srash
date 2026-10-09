@@ -1,3 +1,5 @@
+from unittest import mock
+
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase, override_settings
@@ -18,6 +20,12 @@ class NotificationFlowTests(TestCase):
     def setUp(self):
         # Rate-limit + session buckets live in cache; isolate each test.
         cache.clear()
+        # Silence the real push thread (SQLite "table is locked" noise).
+        patcher = mock.patch(
+            "messages_app.views._dispatch_push", lambda recipient: None
+        )
+        self.addCleanup(patcher.stop)
+        patcher.start()
         self.alice = User.objects.create_user(
             username="alice", password="Secret-12345"
         )

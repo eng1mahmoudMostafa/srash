@@ -2,7 +2,6 @@ import re
 
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
-from django.core import signing
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
@@ -61,14 +60,25 @@ class RegisterSerializer(serializers.ModelSerializer):
         style={"input_type": "password"},
         validators=[validate_password_ar],
     )
-    # Optional but encouraged: enables e-mail notifications & verification.
-    email = serializers.EmailField(required=False, allow_blank=True)
     # REQUIRED: the account's real public name (first + last, letters only).
     full_name = serializers.CharField(write_only=True, max_length=60)
+    # REQUIRED: how this user will recover their password (no e-mail is used).
+    security_question = serializers.CharField(max_length=200)
+    security_answer = serializers.CharField(
+        write_only=True,
+        trim_whitespace=True,
+        style={"input_type": "text"},
+    )
 
     class Meta:
         model = User
-        fields = ["username", "password", "email", "full_name"]
+        fields = [
+            "username",
+            "password",
+            "full_name",
+            "security_question",
+            "security_answer",
+        ]
 
     def validate_username(self, value):
         return value.strip().lower()
@@ -81,19 +91,38 @@ class RegisterSerializer(serializers.ModelSerializer):
             )
         return validate_real_name(value)
 
-    def validate_email(self, value):
-        value = (value or "").strip()
-        if not value:
-            return None
-        if User.objects.filter(email__iexact=value).exists():
-            raise serializers.ValidationError("هذا البريد مستخدم بالفعل بحساب آخر.")
-        return value.lower()
+    def validate_security_question(self, value):
+        question = " ".join(str(value or "").split())
+        if len(question) < 10:
+            raise serializers.ValidationError(
+                "اكتب سؤالًا واضحًا لا يقل عن 10 أحرف — مثال: ما اسم مدرستي الابتدائية؟"
+            )
+        if "?" not in question and "؟" not in question:
+            raise serializers.ValidationError(
+                "اكتب السؤال بصيغة سؤال (منتهٍ بعلامة استفهام)."
+            )
+        return question
+
+    def validate_security_answer(self, value):
+        answer = " ".join(str(value or "").split())
+        if len(answer) < 2:
+            raise serializers.ValidationError(
+                "اكتب إجابة لا تقل عن حرفين — ستكتبها لاستعادة كلمة المرور."
+            )
+        if len(answer) > 100:
+            raise serializers.ValidationError("الإجابة طويلة جدًا (100 حرف كحد أقصى).")
+        return answer
 
     def create(self, validated_data):
-        email = validated_data.pop("email", None)
         full_name = validated_data.pop("full_name", "")
-        user = User(username=validated_data["username"], email=email or None)
+        security_question = validated_data.pop("security_question", "")
+        security_answer = validated_data.pop("security_answer", "")
+        user = User(username=validated_data["username"])
         user.set_password(validated_data["password"])
+        # Recovery data: the question in cleartext, the answer only as a
+        # normalized PBKDF2 hash (never in plaintext).
+        user.security_question = security_question
+        user.set_security_answer(security_answer)
         user.save()
         # The real name is a required registration step: it seeds the
         # public profile's display name immediately.
@@ -121,7 +150,7 @@ class LoginSerializer(serializers.Serializer):
 
 
 class MeSerializer(serializers.ModelSerializer):
-    """Self view incl. e-mail status + premium verification badge."""
+    """Self view: identity + premium verification badge (no e-mail)."""
 
     is_verified = serializers.SerializerMethodField()
     shareable_url = serializers.SerializerMethodField()
@@ -129,7 +158,7 @@ class MeSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "id", "username", "email", "email_verified",
+            "id", "username",
             "is_verified", "shareable_url", "created_at",
             "accept_anonymous",
         ]
@@ -141,21 +170,6 @@ class MeSerializer(serializers.ModelSerializer):
     def get_shareable_url(self, obj):
         request = self.context.get("request")
         return obj.share_url(request)
-
-
-class EmailUpdateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ["email"]
-
-    def validate_email(self, value):
-        value = (value or "").strip().lower()
-        if not value:
-            raise serializers.ValidationError("اكتب بريدًا إلكترونيًا صحيحًا.")
-        clash = User.objects.filter(email__iexact=value).exclude(pk=self.instance.pk)
-        if clash.exists():
-            raise serializers.ValidationError("هذا البريد مستخدم بالفعل بحساب آخر.")
-        return value
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -284,7 +298,7 @@ class UserSettingsSerializer(serializers.ModelSerializer):
         fields = [
             "allow_anonymous",
             "gap_minutes",
-            "notify_new_message",
+            "push_notifications",
         ]
 
 
@@ -314,15 +328,22 @@ class ChangePasswordSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "كلمة المرور الجديدة مطابقة للحالية."
             )
-        # user-aware validators (similarity to username/e-mail included).
-        validate_password_ar(value, user=user)
-        return value
 
 
-class PasswordResetConfirmSerializer(serializers.Serializer):
-    """Resolve the emailed token first, then validate the new password."""
+class PasswordRecoverySerializer(serializers.Serializer):
+    """Username + the user's own security answer -> set a brand-new password.
 
-    t = serializers.CharField(write_only=True)
+    The answer is checked against a PBKDF2 hash of the *normalized* answer,
+    so Arabic spelling variants (alef/yeh/teh-marbuta) and stray spaces still
+    match while the stored value stays unreadable.
+    """
+
+    username = serializers.CharField(max_length=150)
+    security_answer = serializers.CharField(
+        write_only=True,
+        trim_whitespace=True,
+        style={"input_type": "text"},
+    )
     new_password = serializers.CharField(
         write_only=True,
         trim_whitespace=False,
@@ -330,20 +351,24 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     )
 
     def validate(self, attrs):
-        from common.mail import PASSWORD_RESET_SALT
+        user = User.objects.filter(
+            username__iexact=str(attrs.get("username", "")).strip().lower(),
+            is_active=True,
+        ).first()
 
-        token = attrs.get("t", "") or ""
-        try:
-            data = signing.loads(
-                token, salt=PASSWORD_RESET_SALT, max_age=60 * 60
-            )
-            user = User.objects.filter(pk=data.get("uid"), is_active=True).first()
-        except Exception:
-            user = None
-        if user is None:
-            raise serializers.ValidationError(
-                {"t": "رابط الاستعادة غير صالح أو انتهت صلاحيته."}
-            )
+        # Same error for "no such user" and "wrong answer": never reveals
+        # whether an account exists, nor how close the guess was.
+        wrong = serializers.ValidationError(
+            {
+                "security_answer": (
+                    "الإجابة غير صحيحة — تأكد من كتابة نفس الإجابة التي سجّلتها عند إنشاء الحساب."
+                )
+            }
+        )
+        if user is None or not user.has_security_question:
+            raise wrong
+        if not user.check_security_answer(attrs["security_answer"]):
+            raise wrong
         if user.check_password(attrs["new_password"]):
             raise serializers.ValidationError(
                 {"new_password": "كلمة المرور الجديدة مطابقة للحالية."}

@@ -1,3 +1,5 @@
+from unittest import mock
+
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase, override_settings
@@ -12,6 +14,16 @@ User = get_user_model()
     RATE_LIMIT_PER_MINUTE=10**6, RATE_LIMIT_PER_HOUR=10**6
 )
 class SendMessageTests(TestCase):
+    def setUp(self):
+        # Never spawn the real push thread in tests: daemon threads cannot
+        # see uncommitted test data on SQLite (noisy "table is locked" and
+        # flaky). The dedicated PushAlertTests cover push synchronously.
+        patcher = mock.patch(
+            "messages_app.views._dispatch_push", lambda recipient: None
+        )
+        self.addCleanup(patcher.stop)
+        patcher.start()
+        super().setUp()
     def _login_sender(self, username="sara"):
         """Sending now requires a registered, logged-in account."""
         User.objects.create_user(username=username, password="Secret-12345")
@@ -146,6 +158,12 @@ class SenderRevealTests(TestCase):
         from django.core.cache import cache
 
         cache.clear()
+        # Silence the real push thread (SQLite "table is locked" noise).
+        patcher = mock.patch(
+            "messages_app.views._dispatch_push", lambda recipient: None
+        )
+        self.addCleanup(patcher.stop)
+        patcher.start()
 
     def _send(self):
         User.objects.create_user(username="sara", password="Secret-12345")
@@ -229,6 +247,12 @@ class SendingRegressionTests(TestCase):
         from django.core.cache import cache
 
         cache.clear()
+        # Silence the real push thread (SQLite "table is locked" noise).
+        patcher = mock.patch(
+            "messages_app.views._dispatch_push", lambda recipient: None
+        )
+        self.addCleanup(patcher.stop)
+        patcher.start()
 
     def _recipient(self):
         return User.objects.create_user(
@@ -509,6 +533,12 @@ class InboxPaginationTests(TestCase):
     def setUp(self):
         # Rate-limit + session buckets live in cache; isolate each test.
         cache.clear()
+        # Silence the real push thread (SQLite "table is locked" noise).
+        patcher = mock.patch(
+            "messages_app.views._dispatch_push", lambda recipient: None
+        )
+        self.addCleanup(patcher.stop)
+        patcher.start()
         self.recipient = User.objects.create_user(
             username="ahmed", password="Secret-12345"
         )
