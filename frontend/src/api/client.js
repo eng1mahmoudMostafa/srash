@@ -85,6 +85,12 @@ export function handleError(error) {
     const data = error.response.data;
     const msg = flattenError(data);
     if (msg) {
+      // The server/proxy may answer with an HTML error page (e.g. Django's
+      // 404/500 page when an endpoint doesn't exist yet). Never dump raw
+      // HTML into the UI — show a readable message instead.
+      if (/^\s*<(!doctype|html)/i.test(msg)) {
+        return "تعذّر إتمام الطلب — أعاد الخادم صفحة خطأ. أعد تحميل الصفحة وحاول مرة أخرى، وإن استمر العودة لاحقًا.";
+      }
       if (/csrf/i.test(msg)) {
         return "انتهت صلاحية رمز الأمان — حاول مرة أخرى أو أعد تحميل الصفحة.";
       }
