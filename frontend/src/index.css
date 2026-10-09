@@ -17,6 +17,11 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
 }
 
 .app {
@@ -38,10 +43,16 @@ body {
 .nav a {
   color: var(--text);
   text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-
+.nav a:hover {
+  background: rgba(148, 163, 184, 0.16);
+}
 .nav a.active {
   color: var(--accent);
+  background: rgba(34, 197, 94, 0.14);
 }
 
 .nav-auth {
@@ -52,9 +63,10 @@ body {
 
 .card {
   background: var(--card);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 20px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.16);
 }
 
 h1 {
@@ -92,6 +104,14 @@ textarea {
   background: #0f172a;
   color: var(--text);
   font: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
 }
 
 button {
@@ -102,6 +122,17 @@ button {
   color: #04110a;
   font-weight: 600;
   cursor: pointer;
+  transition: transform 0.06s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+button:hover {
+  filter: brightness(1.06);
+}
+button:active {
+  transform: translateY(1px) scale(0.99);
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 button.danger {
@@ -150,6 +181,18 @@ button.danger {
 .msg-body {
   white-space: pre-wrap;
   font-size: 1.05rem;
+}
+
+/* حلقة تركيز واضحة للوصولية (لوحة المفاتيح/اللمس) */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+.chip:focus-visible,
+.share-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* ---- الملف الشخصي والصور ---- */
@@ -386,10 +429,17 @@ button.danger {
 @media (max-width: 600px) {
   .app {
     padding: 10px;
+    padding-left: max(10px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
   }
 
   .nav {
     gap: 10px;
+  }
+  .nav > a {
+    padding: 8px 10px;
+    font-size: 0.95rem;
   }
 
   .card {
@@ -405,7 +455,26 @@ button.danger {
 
   button {
     width: 100%;
-    padding: 12px 16px;
+    padding: 13px 16px;
+    min-height: 44px;
+  }
+
+  /* زر الثيم يبقى أيقونة مدمجة ولا يتمدد على العرض */
+  .theme-toggle {
+    width: auto;
+    min-height: 0;
+    padding: 6px 14px;
+    flex-shrink: 0;
+  }
+
+  /* أزرار صندوق الرد تتناغم ولا تفيض */
+  .reply-compose .row {
+    flex-wrap: wrap;
+  }
+  .reply-compose .row > * {
+    width: auto;
+    flex: 1 1 auto;
+    min-height: 40px;
   }
 
   .row {
@@ -522,6 +591,7 @@ button.danger {
   line-height: 1.4;
   border-radius: 999px;
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 .theme-toggle:hover {
   background: rgba(255, 255, 255, 0.08);
@@ -534,6 +604,7 @@ button.danger {
   font-size: 0.8rem;
   border-radius: 999px;
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 .nav-copy:hover {
   background: rgba(255, 255, 255, 0.08);
@@ -589,6 +660,13 @@ button.danger {
   font-weight: 700;
   color: #fff;
   cursor: pointer;
+  transition: filter 0.15s ease, transform 0.06s ease;
+}
+.share-btn:hover {
+  filter: brightness(1.08);
+}
+.share-btn:active {
+  transform: translateY(1px);
 }
 .share-wa { background: #25d366; }
 .share-tg { background: #229ed9; }
@@ -630,10 +708,14 @@ button.danger {
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.06s ease;
 }
 .chip:hover {
   background: var(--accent);
   color: #04110a;
+}
+.chip:active {
+  transform: translateY(1px);
 }
 
 /* ---- الثيم الفاتح ---- */
