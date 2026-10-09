@@ -19,12 +19,26 @@ export default function Inbox() {
   const [replyFor, setReplyFor] = useState(null); // id الرسالة الجاري الرد عليها
   const [replyText, setReplyText] = useState("");
   const [replyBusy, setReplyBusy] = useState(false);
+  // ترقيم الخادم: نجلب صفحة واحدة ثم نضيف الأقدم زر "عرض المزيد"
+  const [page, setPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const load = useCallback(() => {
-    fetchInbox()
-      .then((res) => setMessages(res.data.results))
+  const load = useCallback((pageNum = 1) => {
+    return fetchInbox(pageNum)
+      .then((res) => {
+        const results = (res.data && res.data.results) || [];
+        setPage(pageNum);
+        setHasNext(Boolean(res.data && res.data.has_next));
+        setMessages((prev) => (pageNum === 1 ? results : [...prev, ...results]));
+      })
       .catch((err) => setError(handleError(err) || "لا يمكن عرض الرسائل."));
   }, []);
+
+  function loadMore() {
+    setLoadingMore(true);
+    load(page + 1).finally(() => setLoadingMore(false));
+  }
 
   useEffect(() => {
     fetchMe()
@@ -36,7 +50,10 @@ export default function Inbox() {
   async function markRead(id) {
     try {
       await readMessage(id);
-      await load();
+      // تحديث محلي يحفظ الصفحات المفتوحة عبر "عرض المزيد"
+      setMessages((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, is_read: true } : m))
+      );
     } catch (err) {
       setError(handleError(err));
     }
@@ -47,7 +64,7 @@ export default function Inbox() {
       await fetchCsrf();
       await deleteMessage(id);
       toast("تم حذف الرسالة.");
-      await load();
+      setMessages((prev) => prev.filter((m) => m.id !== id));
     } catch (err) {
       const m = handleError(err);
       setError(m);
@@ -65,7 +82,13 @@ export default function Inbox() {
       setReplyFor(null);
       setReplyText("");
       toast("✅ تم إرسال ردك.");
-      await load();
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === id
+            ? { ...m, reply: text, replied_at: new Date().toISOString() }
+            : m
+        )
+      );
     } catch (err) {
       const m = handleError(err);
       setError(m);
@@ -181,6 +204,18 @@ export default function Inbox() {
             </div>
           </article>
         ))
+      )}
+      {hasNext && (
+        <div className="row load-more-row">
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={loadMore}
+            disabled={loadingMore}
+          >
+            {loadingMore ? "جارٍ التحميل..." : "عرض رسائل أقدم ⬇"}
+          </button>
+        </div>
       )}
     </section>
   );

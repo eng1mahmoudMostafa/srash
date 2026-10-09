@@ -11,6 +11,10 @@ backend/db.sqlite3
 .env.local
 *.pem
 
+# Local uploads & scratch test output
+backend/media/
+backend/_*.txt
+
 # --- Node / Vite ---
 frontend/node_modules/
 frontend/dist/

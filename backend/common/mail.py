@@ -17,6 +17,8 @@ def _sanitize_header_value(value: str) -> str:
     return "".join(value.replace("\r", "").replace("\n", "").splitlines())
 
 VERIFY_SALT = "users.email.verify.v1"
+# Reset tokens live only 1 hour (confirmed in PasswordResetConfirmView).
+PASSWORD_RESET_SALT = "users.password.reset.v1"
 
 
 def send_async(fn, *args):
@@ -58,6 +60,29 @@ def send_email_verification_email(user):
             f"مرحبًا {_sanitize_header_value(user.username)}!\n\n"
             f"اضغط الرابط لتأكيد أن هذا البريد لك:\n{link}\n\n"
             "الرابط صالح 48 ساعة.\n\nفريق صراحة."
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[user.email],
+        fail_silently=False,
+    )
+    return True
+
+
+def send_password_reset_email(user):
+    """E-mail a 1-hour reset link. Opens the SPA page (not the API) and,
+    like every e-mail here, never carries any message content."""
+    if not user.email:
+        return False
+    token = signing.dumps({"uid": user.pk}, salt=PASSWORD_RESET_SALT)
+    link = f"{settings.SITE_BASE_URL}/reset-password?t={token}"
+    send_mail(
+        subject="إعادة تعيين كلمة مرورك على صراحة",
+        message=(
+            f"مرحبًا {_sanitize_header_value(user.username)} 👋\n\n"
+            "استلمنا طلبًا لإعادة تعيين كلمة المرور. افتح الرابط لاختيار كلمة جديدة:\n"
+            f"{link}\n\n"
+            "الرابط صالح لمدة ساعة واحدة فقط.\n"
+            "إذا لم تطلب هذا، تجاهل هذه الرسالة — لن يتغيّر شيء.\n\nفريق صراحة."
         ),
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[user.email],

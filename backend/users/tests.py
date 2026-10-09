@@ -1,6 +1,10 @@
 from django.contrib.auth import get_user_model
+from django.core import mail, signing
+from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
+
+from common.mail import PASSWORD_RESET_SALT
 
 User = get_user_model()
 
@@ -227,3 +231,123 @@ class ToggleAnonymousTests(TestCase):
                 "allow_anonymous"
             ]
         )
+
+
+class PasswordChangeTests(TestCase):
+    def setUp(self):
+        # Rate-limit + session buckets live in cache; isolate each test.
+        cache.clear()
+        self.user = User.objects.create_user(
+            username="ahmed",
+            password="Secret-12345",
+            email="ahmed@example.com",
+        )
+        self.client.force_login(self.user)
+
+    def test_change_password_requires_correct_old_one(self):
+        bad = self.client.post(
+            reverse("auth:change-password"),
+            data={
+                "old_password": "Wrong-99999",
+                "new_password": "NewPass-9876",
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(bad.status_code, 400)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("Secret-12345"))
+
+    def test_change_password_success_keeps_own_session(self):
+        ok = self.client.post(
+            reverse("auth:change-password"),
+            data={
+                "old_password": "Secret-12345",
+                "new_password": "NewPass-9876",
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(ok.status_code, 200, ok.data)
+        # Same session survives (update_session_auth_hash)...
+        self.assertEqual(self.client.get(reverse("auth:me")).status_code, 200)
+        # ...but only the new password logs in from now on.
+        self.client.post(reverse("auth:logout"))
+        old = self.client.post(
+            reverse("auth:login"),
+            data={"username": "ahmed", "password": "Secret-12345"},
+            content_type="application/json",
+        )
+        self.assertIn(old.status_code, (400, 401, 403))
+        new = self.client.post(
+            reverse("auth:login"),
+            data={"username": "ahmed", "password": "NewPass-9876"},
+            content_type="application/json",
+        )
+        self.assertEqual(new.status_code, 200)
+
+    def test_change_password_rejects_new_equal_to_old(self):
+        resp = self.client.post(
+            reverse("auth:change-password"),
+            data={
+                "old_password": "Secret-12345",
+                "new_password": "Secret-12345",
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+
+class PasswordResetTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(
+            username="mona",
+            password="Secret-12345",
+            email="mona@example.com",
+        )
+
+    def test_forgot_password_is_enumeration_safe(self):
+        known = self.client.post(
+            reverse("auth:forgot-password"),
+            data={"email": "mona@example.com"},
+            content_type="application/json",
+        )
+        self.assertEqual(known.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("/reset-password?t=", mail.outbox[0].body)
+
+        unknown = self.client.post(
+            reverse("auth:forgot-password"),
+            data={"email": "nobody@example.com"},
+            content_type="application/json",
+        )
+        self.assertEqual(unknown.status_code, 200)
+        # Same body either way — probing addresses reveals nothing.
+        self.assertEqual(unknown.data["detail"], known.data["detail"])
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_reset_confirm_sets_new_password(self):
+        token = signing.dumps({"uid": self.user.pk}, salt=PASSWORD_RESET_SALT)
+        resp = self.client.post(
+            reverse("auth:reset-password"),
+            data={"t": token, "new_password": "FreshPass-77"},
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("FreshPass-77"))
+        login = self.client.post(
+            reverse("auth:login"),
+            data={"username": "mona", "password": "FreshPass-77"},
+            content_type="application/json",
+        )
+        self.assertEqual(login.status_code, 200)
+
+    def test_invalid_reset_token_rejected(self):
+        resp = self.client.post(
+            reverse("auth:reset-password"),
+            data={"t": "garbage-token", "new_password": "FreshPass-77"},
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("Secret-12345"))

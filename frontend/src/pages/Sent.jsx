@@ -8,12 +8,26 @@ export default function Sent() {
   const [me, setMe] = useState(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  // ترقيم الخادم: صفحة واحدة ثم إضافة الأقدم زر "عرض المزيد"
+  const [page, setPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const load = useCallback(() => {
-    fetchSent()
-      .then((res) => setMessages(res.data.results))
+  const load = useCallback((pageNum = 1) => {
+    return fetchSent(pageNum)
+      .then((res) => {
+        const results = (res.data && res.data.results) || [];
+        setPage(pageNum);
+        setHasNext(Boolean(res.data && res.data.has_next));
+        setMessages((prev) => (pageNum === 1 ? results : [...prev, ...results]));
+      })
       .catch((err) => setError(handleError(err) || "لا يمكن عرض الرسائل المرسلة."));
   }, []);
+
+  function loadMore() {
+    setLoadingMore(true);
+    load(page + 1).finally(() => setLoadingMore(false));
+  }
 
   useEffect(() => {
     fetchMe()
@@ -31,7 +45,8 @@ export default function Sent() {
       await deleteForRecipient(id);
       setNotice("تم حذف الرسالة من الطرف الآخر بنجاح.");
       toast("تم حذف الرسالة من الطرف الآخر بنجاح.");
-      await load();
+      // الرسالة تختفي من قائمتين معًا (soft delete) — حذفها محليًا يحفظ ترقيمك
+      setMessages((prev) => prev.filter((m) => m.id !== id));
     } catch (err) {
       const m = handleError(err);
       setError(m);
@@ -97,6 +112,18 @@ export default function Sent() {
             </p>
           </article>
         ))
+      )}
+      {hasNext && (
+        <div className="row load-more-row">
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={loadMore}
+            disabled={loadingMore}
+          >
+            {loadingMore ? "جارٍ التحميل..." : "عرض رسائل أقدم ⬇"}
+          </button>
+        </div>
       )}
     </section>
   );

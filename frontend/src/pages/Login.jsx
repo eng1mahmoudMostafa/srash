@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { fetchCsrf, handleError } from "../api/client";
 import { login } from "../api/endpoints";
 import { toast } from "../toast";
@@ -51,6 +51,9 @@ export default function Login() {
           {busy ? "جارٍ الدخول..." : "دخول"}
         </button>
       </form>
+      <p className="hint">
+        نسيت كلمة المرور؟ <Link to="/forgot-password">استعدها عبر بريدك</Link>
+      </p>
     </section>
   );
 }

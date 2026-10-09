@@ -44,9 +44,11 @@ export const messageImageUrl = (id) => `/api/messages/${id}/image/`;
 // Public stats
 export const fetchStats = () => api.get("/stats/");
 
-// Inbox & messages
-export const fetchInbox = () => api.get("/messages/inbox/");
-export const fetchSent = () => api.get("/messages/sent/");
+// Inbox & messages (مُقسَّمة: page/page_size → results/total/has_next/has_prev)
+export const fetchInbox = (page = 1, pageSize = 10) =>
+  api.get("/messages/inbox/", { params: { page, page_size: pageSize } });
+export const fetchSent = (page = 1, pageSize = 10) =>
+  api.get("/messages/sent/", { params: { page, page_size: pageSize } });
 export const readMessage = (id) => api.patch(`/messages/${id}/`);
 export const deleteMessage = (id) => api.delete(`/messages/${id}/`);
 // حذف الرسالة من صندوق الطرف الآخر (ميزة الاشتراك الموثق)
@@ -81,3 +83,21 @@ export const subscribe = (transferNote = "") =>
   api.post("/settings/subscribe/", { transfer_note: transferNote });
 export const fetchSubscriptionStatus = () =>
   api.get("/settings/subscribe/status/");
+
+// Password — تغيير (للمسجّل دخوله) + استعادة عبر رابط يُرسل للبريد
+export const changePassword = (oldPassword, newPassword) =>
+  api.post("/auth/change-password/", {
+    old_password: oldPassword,
+    new_password: newPassword,
+  });
+export const forgotPassword = (email) =>
+  api.post("/auth/forgot-password/", { email });
+export const resetPassword = (token, newPassword) =>
+  api.post("/auth/reset-password/", { t: token, new_password: newPassword });
+
+// In-app notifications (الجرس في شريط التنقل — بدون محتوى الرسائل)
+export const fetchNotifications = () => api.get("/notifications/");
+export const markNotificationRead = (id) =>
+  api.post(`/notifications/${id}/read/`);
+export const markAllNotificationsRead = () =>
+  api.post("/notifications/read-all/");

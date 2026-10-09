@@ -2,6 +2,7 @@ import re
 
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
+from django.core import signing
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
@@ -285,3 +286,71 @@ class UserSettingsSerializer(serializers.ModelSerializer):
             "gap_minutes",
             "notify_new_message",
         ]
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    """Re-authenticate with the current password, then set a stronger one."""
+
+    old_password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+        style={"input_type": "password"},
+    )
+    new_password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+        style={"input_type": "password"},
+    )
+
+    def validate_old_password(self, value):
+        user = self.context["request"].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("كلمة المرور الحالية غير صحيحة.")
+        return value
+
+    def validate_new_password(self, value):
+        user = self.context["request"].user
+        if user.check_password(value):
+            raise serializers.ValidationError(
+                "كلمة المرور الجديدة مطابقة للحالية."
+            )
+        # user-aware validators (similarity to username/e-mail included).
+        validate_password_ar(value, user=user)
+        return value
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    """Resolve the emailed token first, then validate the new password."""
+
+    t = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+        style={"input_type": "password"},
+    )
+
+    def validate(self, attrs):
+        from common.mail import PASSWORD_RESET_SALT
+
+        token = attrs.get("t", "") or ""
+        try:
+            data = signing.loads(
+                token, salt=PASSWORD_RESET_SALT, max_age=60 * 60
+            )
+            user = User.objects.filter(pk=data.get("uid"), is_active=True).first()
+        except Exception:
+            user = None
+        if user is None:
+            raise serializers.ValidationError(
+                {"t": "رابط الاستعادة غير صالح أو انتهت صلاحيته."}
+            )
+        if user.check_password(attrs["new_password"]):
+            raise serializers.ValidationError(
+                {"new_password": "كلمة المرور الجديدة مطابقة للحالية."}
+            )
+        try:
+            validate_password_ar(attrs["new_password"], user=user)
+        except serializers.ValidationError as exc:
+            raise serializers.ValidationError({"new_password": exc.detail})
+        attrs["user"] = user
+        return attrs

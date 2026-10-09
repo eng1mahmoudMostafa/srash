@@ -2,7 +2,12 @@ import os
 from datetime import timedelta
 
 from django.conf import settings as dj_settings
-from django.contrib.auth import get_user_model, login, logout
+from django.contrib.auth import (
+    get_user_model,
+    login,
+    logout,
+    update_session_auth_hash,
+)
 from django.core import signing
 from django.core.files.base import ContentFile
 from django.http import HttpResponse
@@ -15,14 +20,22 @@ from rest_framework.views import APIView
 
 from common.mail import (
     VERIFY_SALT,
+    send_async,
     send_email_verification_email,
+    send_password_reset_email,
 )
-from common.rate import RateLimitExceeded, check_login_rate_limit
+from common.rate import (
+    RateLimitExceeded,
+    check_login_rate_limit,
+    check_password_rate_limit,
+)
 from users.models import Profile, Subscription, UserSettings
 from users.serializers import (
+    ChangePasswordSerializer,
     EmailUpdateSerializer,
     LoginSerializer,
     MeSerializer,
+    PasswordResetConfirmSerializer,
     ProfileSerializer,
     ProfileUpdateSerializer,
     RegisterSerializer,
@@ -114,6 +127,92 @@ class SendVerificationEmailView(APIView):
 
         send_async(send_email_verification_email, request.user)
         return Response({"detail": "تم إرسال رابط التوثيق إلى بريدك."})
+
+
+class ChangePasswordView(APIView):
+    """POST /api/auth/change-password/ — proof of the current password.
+
+    The caller's own session is kept alive (update_session_auth_hash) while
+    every other session for this user is invalidated by the hash change.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        try:
+            # Brute-force protection on the old-password guess.
+            check_password_rate_limit(request, "pwdchange")
+        except RateLimitExceeded as exc:
+            return Response(
+                {"detail": exc.message},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+        serializer = ChangePasswordSerializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        request.user.set_password(serializer.validated_data["new_password"])
+        request.user.save(update_fields=["password"])
+        update_session_auth_hash(request, request.user)
+        return Response({"detail": "تم تغيير كلمة المرور بنجاح."})
+
+
+class PasswordResetSendView(APIView):
+    """POST /api/auth/forgot-password/ — e-mail a 1-hour reset link.
+
+    Always returns the same 200 body whether or not the address exists,
+    so this endpoint cannot be used to enumerate accounts.
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        try:
+            check_password_rate_limit(request, "pwdreset")
+        except RateLimitExceeded as exc:
+            return Response(
+                {"detail": exc.message},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+        email = str(request.data.get("email", "") or "").strip().lower()
+        if email:
+            user = (
+                User.objects.filter(email__iexact=email, is_active=True).first()
+            )
+            if user is not None:
+                # Background thread: SMTP latency never delays the response.
+                send_async(send_password_reset_email, user)
+        return Response(
+            {
+                "detail": (
+                    "إذا كان هذا البريد مسجّلًا فسيصلك رابط إعادة التعيين خلال دقائق."
+                )
+            }
+        )
+
+
+class PasswordResetConfirmView(APIView):
+    """POST /api/auth/reset-password/ — token (from the e-mail) + new password."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        try:
+            # Token brute-force protection (separate bucket from the others).
+            check_password_rate_limit(request, "pwdconfirm")
+        except RateLimitExceeded as exc:
+            return Response(
+                {"detail": exc.message},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data["user"]
+        user.set_password(serializer.validated_data["new_password"])
+        user.save(update_fields=["password"])
+        return Response(
+            {"detail": "تم إعادة تعيين كلمة المرور — سجّل دخولك الآن."}
+        )
 
 
 class PublicProfileView(APIView):

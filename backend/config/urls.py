@@ -11,6 +11,7 @@ urlpatterns = [
     path("api/users/", include("users.profile_urls")),
     path("api/messages/", include("messages_app.urls")),
     path("api/settings/", include("users.settings_urls")),
+    path("api/notifications/", include("notifications.urls")),
     # Uploaded media (avatars) served by Django itself.
     re_path(r"^media/(?P<path>.*)$", config_views.media_file, name="media"),
     # Real files from the Vite build (JS/CSS bundles, icons); safe fallback

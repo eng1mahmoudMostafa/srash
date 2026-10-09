@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -497,3 +498,65 @@ class AvatarRemoveTests(TestCase):
                 self.assertTrue(bool(profile.avatar))
                 self.assertFalse(profile.avatar_url)
                 self.assertTrue(resp.data.get("avatar_url"))
+
+
+@override_settings(
+    RATE_LIMIT_PER_MINUTE=10**6, RATE_LIMIT_PER_HOUR=10**6
+)
+class InboxPaginationTests(TestCase):
+    """page/page_size envelope that powers the SPA's "load more" button."""
+
+    def setUp(self):
+        # Rate-limit + session buckets live in cache; isolate each test.
+        cache.clear()
+        self.recipient = User.objects.create_user(
+            username="ahmed", password="Secret-12345"
+        )
+        self.sender = User.objects.create_user(
+            username="sara", password="Secret-12345"
+        )
+        self.client.force_login(self.sender)
+        for i in range(3):
+            resp = self.client.post(
+                reverse("messages:send"),
+                data={"username": "ahmed", "message": f"رسالة رقم {i}"},
+                content_type="application/json",
+            )
+            self.assertEqual(resp.status_code, 201, resp.data)
+        self.client.logout()
+
+    def test_inbox_pages_and_flags(self):
+        self.client.force_login(self.recipient)
+        page1 = self.client.get(
+            reverse("messages:inbox"), {"page": 1, "page_size": 2}
+        )
+        self.assertEqual(page1.status_code, 200)
+        self.assertEqual(page1.data["page"], 1)
+        self.assertEqual(page1.data["total"], 3)
+        self.assertEqual(len(page1.data["results"]), 2)
+        self.assertTrue(page1.data["has_next"])
+        self.assertFalse(page1.data["has_prev"])
+
+        page2 = self.client.get(
+            reverse("messages:inbox"), {"page": 2, "page_size": 2}
+        )
+        self.assertEqual(len(page2.data["results"]), 1)
+        self.assertFalse(page2.data["has_next"])
+        self.assertTrue(page2.data["has_prev"])
+
+    def test_invalid_page_param_falls_back_to_first(self):
+        self.client.force_login(self.recipient)
+        resp = self.client.get(reverse("messages:inbox"), {"page": "abc"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["page"], 1)
+        self.assertEqual(resp.data["total"], 3)
+
+    def test_sent_page_envelope(self):
+        self.client.force_login(self.sender)
+        resp = self.client.get(
+            reverse("messages:sent"), {"page": 1, "page_size": 2}
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["total"], 3)
+        self.assertEqual(len(resp.data["results"]), 2)
+        self.assertTrue(resp.data["has_next"])

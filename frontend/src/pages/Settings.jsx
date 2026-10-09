@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { fetchCsrf, handleError } from "../api/client";
 import { toast } from "../toast";
 import {
+  changePassword,
   fetchMe,
   fetchMyProfile,
   fetchSettings,
@@ -32,6 +33,12 @@ export default function SettingsPage() {
   const [emailError, setEmailError] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // تغيير كلمة المرور (قسم مستقل بمشغله الخاص حتى لا يعطّل غيره)
+  const [oldPw, setOldPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [newPw2, setNewPw2] = useState("");
+  const [pwError, setPwError] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
 
   const load = useCallback(() => {
     fetchMe()
@@ -115,6 +122,31 @@ export default function SettingsPage() {
     const file = e.target.files && e.target.files[0];
     if (file) run(() => uploadAvatar(file), "تم تحديث صورة الحساب.");
   };
+
+  // تغيير كلمة المرور وهو مسجّل الدخول (يحتاج كلمة المرور الحالية)
+  async function changePw(e) {
+    e.preventDefault();
+    setPwError("");
+    if (newPw !== newPw2) {
+      setPwError("كلمتا المرور الجديدتان غير متطابقتين.");
+      return;
+    }
+    setPwBusy(true);
+    try {
+      await fetchCsrf();
+      await changePassword(oldPw, newPw);
+      setOldPw("");
+      setNewPw("");
+      setNewPw2("");
+      toast("🔑 تم تغيير كلمة المرور بنجاح.");
+    } catch (err) {
+      const m = handleError(err);
+      setPwError(m);
+      toast(m, "err");
+    } finally {
+      setPwBusy(false);
+    }
+  }
 
   const saveEmail = (e) => {
     e.preventDefault();
@@ -314,6 +346,58 @@ export default function SettingsPage() {
             <p className="error warn-email" role="alert">{emailError}</p>
           )}
         </form>
+      </section>
+
+      {/* ---- تغيير كلمة المرور ---- */}
+      <section className="card">
+        <h2 className="section-title">🔑 تغيير كلمة المرور</h2>
+        <form onSubmit={changePw} className="form">
+          <label>
+            كلمة المرور الحالية
+            <input
+              type="password"
+              dir="ltr"
+              value={oldPw}
+              onChange={(e) => setOldPw(e.target.value)}
+              required
+              autoComplete="current-password"
+            />
+          </label>
+          <label>
+            كلمة المرور الجديدة
+            <input
+              type="password"
+              dir="ltr"
+              value={newPw}
+              onChange={(e) => setNewPw(e.target.value)}
+              required
+              autoComplete="new-password"
+            />
+          </label>
+          <label>
+            تأكيد كلمة المرور الجديدة
+            <input
+              type="password"
+              dir="ltr"
+              value={newPw2}
+              onChange={(e) => setNewPw2(e.target.value)}
+              required
+              autoComplete="new-password"
+            />
+          </label>
+          {pwError && (
+            <p className="error" role="alert">
+              {pwError}
+            </p>
+          )}
+          <button disabled={pwBusy} type="submit">
+            {pwBusy ? "جارٍ الحفظ..." : "تغيير كلمة المرور"}
+          </button>
+        </form>
+        <p className="hint">
+          نسيتها؟ <Link to="/forgot-password">استعدها عبر بريدك</Link> من
+          صفحة تسجيل الدخول.
+        </p>
       </section>
 
       {/* ---- الاشتراك الموثق ---- */}

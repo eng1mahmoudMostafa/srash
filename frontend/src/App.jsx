@@ -1,6 +1,11 @@
-import { Suspense, lazy, useEffect, useState } from "react";
-import { Routes, Route, NavLink } from "react-router-dom";
-import { fetchMe } from "./api/endpoints";
+import { Suspense, lazy, useCallback, useEffect, useState } from "react";
+import { Routes, Route, NavLink, useNavigate } from "react-router-dom";
+import {
+  fetchMe,
+  fetchNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from "./api/endpoints";
 
 // تحميل كل صفحة عند الحاجة فقط — الحزمة الأولية تصغر والصفحة الرئيسية تظهر أسرع.
 const Home = lazy(() => import("./pages/Home"));
@@ -10,6 +15,9 @@ const PublicProfile = lazy(() => import("./pages/PublicProfile"));
 const Inbox = lazy(() => import("./pages/Inbox"));
 const Sent = lazy(() => import("./pages/Sent"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 function RouteFallback() {
   return (
@@ -92,6 +100,120 @@ function Toasts() {
   );
 }
 
+// جرس الإشعارات داخل التطبيق: عدّاد غير مقروءات + قائمة منسدلة.
+// يعرض نوع الإشعار فقط (وصلك رسالة جديدة) دون أي محتوى — الخصوصية أولًا.
+function NotificationsBell() {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState([]);
+  const [unread, setUnread] = useState(0);
+
+  const load = useCallback(() => {
+    fetchNotifications()
+      .then((res) => {
+        setItems(res.data?.results || []);
+        setUnread(Number(res.data?.unread) || 0);
+      })
+      .catch(() => {
+        /* صامت: الجرس إضافة تجميلية ولا يجب أن يزعج المستخدم بأخطاء */
+      });
+  }, []);
+
+  useEffect(() => {
+    load();
+    const timer = window.setInterval(load, 60000); // تحديث دوري كل دقيقة
+    return () => window.clearInterval(timer);
+  }, [load]);
+
+  // إغلاق القائمة عند النقر خارجها
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDocClick = (e) => {
+      if (!e.target || !e.target.closest || !e.target.closest(".bell-wrap")) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, [open]);
+
+  async function onItemClick(n) {
+    setOpen(false);
+    try {
+      if (!n.is_read) await markNotificationRead(n.id);
+    } catch {
+      /* فشل التعليم لا يمنع فتح صندوق الرسائل */
+    }
+    navigate("/inbox");
+  }
+
+  async function markAll() {
+    try {
+      await markAllNotificationsRead();
+      setUnread(0);
+      setItems((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    } catch {
+      /* تجاهل */
+    }
+  }
+
+  return (
+    <div className="bell-wrap">
+      <button
+        type="button"
+        className="bell-btn"
+        onClick={() => setOpen((v) => !v)}
+        title="الإشعارات"
+        aria-label={unread ? `الإشعارات (${unread} غير مقروءة)` : "الإشعارات"}
+        aria-expanded={open}
+        aria-haspopup="true"
+      >
+        🔔
+        {unread > 0 && (
+          <span className="bell-badge">{unread > 99 ? "99+" : unread}</span>
+        )}
+      </button>
+      {open && (
+        <div className="bell-dd" role="menu">
+          <div className="bell-dd-head">
+            <strong>الإشعارات</strong>
+            <button
+              type="button"
+              className="linklike"
+              onClick={markAll}
+              disabled={!unread}
+            >
+              تحديد الكل كمقروء
+            </button>
+          </div>
+          {items.length === 0 ? (
+            <p className="hint bell-empty">لا توجد إشعارات بعد.</p>
+          ) : (
+            <ul className="bell-list">
+              {items.map((n) => (
+                <li key={n.id}>
+                  <button
+                    type="button"
+                    className={`bell-item ${n.is_read ? "" : "bell-unread"}`}
+                    onClick={() => onItemClick(n)}
+                    role="menuitem"
+                  >
+                    💬 وصلك رسالة جديدة
+                    <span className="hint">
+                      {" "}
+                      · {new Date(n.created_at).toLocaleString()}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Nav() {
   const [theme, setTheme] = useState(() => {
     try {
@@ -164,6 +286,7 @@ function Nav() {
         >
           {theme === "dark" ? "☀️" : "🌙"}
         </button>
+        {me && <NotificationsBell />}
         {me ? (
           <div className="nav-mylink">
             <NavLink
@@ -223,6 +346,9 @@ export default function App() {
             <Route path="/inbox" element={<Inbox />} />
             <Route path="/sent" element={<Sent />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </main>

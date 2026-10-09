@@ -22,9 +22,39 @@ from messages_app.serializers import (
     SendMessageSerializer,
     SentMessageSerializer,
 )
+from notifications.models import Notification
 from users.models import Subscription
 
 logger = logging.getLogger(__name__)
+
+
+def _paginate(request, queryset, serializer_cls, default_size=20, max_size=50):
+    """Slice a queryset into a page envelope for the SPA.
+
+    `results` keeps the original shape so a caller that ignores pagination
+    still works; the extra keys power the "load more" button.
+    """
+    try:
+        page = max(1, int(request.query_params.get("page", 1)))
+    except (TypeError, ValueError):
+        page = 1
+    try:
+        page_size = int(request.query_params.get("page_size", default_size))
+    except (TypeError, ValueError):
+        page_size = default_size
+    page_size = max(1, min(max_size, page_size))
+
+    total = queryset.count()
+    start = (page - 1) * page_size
+    chunk = list(queryset[start : start + page_size])
+    return {
+        "results": serializer_cls(chunk, many=True).data,
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "has_next": start + page_size < total,
+        "has_prev": page > 1,
+    }
 
 
 def _perform_send(request):
@@ -53,6 +83,17 @@ def _perform_send(request):
         )
 
     saved_message = serializer.save(sender_user=request.user)
+
+    # In-app notification (privacy-safe: kind only, no body/sender). Created
+    # before the e-mail step so the bell badge is never skipped by SMTP issues.
+    try:
+        Notification.objects.create(
+            recipient=recipient,
+            kind="new_message",
+            message=saved_message,
+        )
+    except Exception:
+        logger.warning("in-app notification create failed", exc_info=True)
 
     # Privacy-safe e-mail nudge: never includes the message body/sender.
     # Sent in the background so SMTP latency can't slow the request.
@@ -92,8 +133,7 @@ class MessageListView(APIView):
             recipient=request.user,
             status__in=[Message.Status.ACTIVE, Message.Status.FLAGGED],
         )
-        serializer = MessageSerializer(queryset, many=True)
-        return Response({"results": serializer.data})
+        return Response(_paginate(request, queryset, MessageSerializer))
 
 
 class MessageDetailView(APIView):
@@ -117,6 +157,11 @@ class MessageDetailView(APIView):
         message = self.get_object(request, pk)
         message.is_read = True
         message.save(update_fields=["is_read"])
+        # Keep the bell badge in sync: the message this notification points
+        # at has now been read.
+        Notification.objects.filter(
+            message=message, is_read=False
+        ).update(is_read=True)
         return Response(MessageSerializer(message).data)
 
     def delete(self, request, pk):
@@ -125,6 +170,8 @@ class MessageDetailView(APIView):
         message.status = Message.Status.DELETED
         message.deleted_at = timezone.now()
         message.save(update_fields=["status", "deleted_at"])
+        # Drop its notifications so the bell never points at a dead message.
+        Notification.objects.filter(message=message).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -145,8 +192,7 @@ class SentMessagesView(APIView):
             sender_fingerprint=fp,
             status__in=[Message.Status.ACTIVE, Message.Status.FLAGGED],
         )
-        serializer = SentMessageSerializer(queryset, many=True)
-        return Response({"results": serializer.data})
+        return Response(_paginate(request, queryset, SentMessageSerializer))
 
 
 class SentMessageDeleteForRecipientView(APIView):
@@ -187,6 +233,8 @@ class SentMessageDeleteForRecipientView(APIView):
         message.status = Message.Status.DELETED
         message.deleted_at = tz.now()
         message.save(update_fields=["status", "deleted_at"])
+        # Drop its notifications so the bell never points at a dead message.
+        Notification.objects.filter(message=message).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

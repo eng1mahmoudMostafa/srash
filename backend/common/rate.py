@@ -84,3 +84,14 @@ def check_login_rate_limit(request) -> None:
     signature = sign_ip(client_ip(request))
     limiter = WindowLimiter("login", 10, 300)  # 10 attempts / 5 minutes
     limiter.check(signature)
+
+
+def check_password_rate_limit(request, prefix: str = "pwd") -> None:
+    """Per-IP limiter for password endpoints (change / reset-send / reset-confirm).
+
+    Each action gets its own bucket so, for example, a burst of reset requests
+    can never lock the user out of `check_login_rate_limit`'s "login" bucket.
+    """
+    signature = sign_ip(client_ip(request))
+    limiter = WindowLimiter(prefix, 10, 300)  # 10 requests / 5 minutes
+    limiter.check(signature)
