@@ -17,8 +17,10 @@ backend/_*.txt
 
 # --- Node / Vite ---
 frontend/node_modules/
-frontend/dist/
 frontend/.vite/
+# NOTE: frontend/dist/ is deliberately NOT ignored — PythonAnywhere deploys
+# straight from git (no npm there), so the built bundles must be committed.
+# (A stale ignore rule here once silently dropped a new build from a commit.)
 
 # --- Editor / OS ---
 .vscode/
