@@ -22,6 +22,8 @@ urlpatterns = [
     # otherwise /sw.js falls through to index.html and registration dies
     # with "The script has an unsupported MIME type ('text/html')".
     re_path(r"^sw\.js$", config_views.spa_asset, name="service-worker"),
+    # Notification chime (played by the bell / push handler).
+    re_path(r"^notify\.wav$", config_views.spa_asset, name="notify-sound"),
     re_path(r"^favicon\.ico$|^vite\.svg$", config_views.spa_asset),
     # SPA fallback: anything not /api, /admin, /static goes to the React app.
     re_path(r"^(?!api/|admin/|static/|assets/|media/).*$", config_views.spa_index, name="spa"),

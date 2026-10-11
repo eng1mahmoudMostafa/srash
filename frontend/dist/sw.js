@@ -17,7 +17,19 @@ self.addEventListener("push", (event) => {
     lang: "ar",
     data: { url: data.url || "/inbox" },
   };
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      // لو في تاب مفتوح: الصفحة تشغّل صوت التنبيه (notify.wav) فنكتم إشعار
+      // النظام لئلا يُسمع صوتان. ولو الموقع مقفول، صوت النظام هو التنبيه.
+      if (windows.length > 0) options.silent = true;
+      for (const c of windows) c.postMessage({ type: "srash:new-message" });
+      await self.registration.showNotification(title, options);
+    })()
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {

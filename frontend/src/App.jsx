@@ -1,11 +1,4 @@
-import {
-  Suspense,
-  lazy,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { Routes, Route, NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   fetchMe,
@@ -13,6 +6,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from "./api/endpoints";
+import { playNotifySound, unlockSound } from "./sound";
 
 // تحميل كل صفحة عند الحاجة فقط — الحزمة الأولية تصغر والصفحة الرئيسية تظهر أسرع.
 const Home = lazy(() => import("./pages/Home"));
@@ -115,6 +109,7 @@ function NotificationsBell() {
   const [unread, setUnread] = useState(0);
   const btnRef = useRef(null);
   const [ddPos, setDdPos] = useState(null);
+  const lastUnread = useRef(null);
 
   // موضع القائمة يُحسب من الزر نفسه ثم يُقصّ داخل حدود الشاشة — فلا تخرج
   // عن حافة الهاتف أبدًا مهما كان موضع الزر أو طول رابط الحساب.
@@ -139,8 +134,14 @@ function NotificationsBell() {
   const load = useCallback(() => {
     fetchNotifications()
       .then((res) => {
+        const count = Number(res.data?.unread) || 0;
+        // صوت عند وصول إشعار جديد (أول تحميل يضبط العدّاد بصمت)
+        if (lastUnread.current !== null && count > lastUnread.current) {
+          playNotifySound();
+        }
+        lastUnread.current = count;
         setItems(res.data?.results || []);
-        setUnread(Number(res.data?.unread) || 0);
+        setUnread(count);
       })
       .catch(() => {
         /* صامت: الجرس إضافة تجميلية ولا يجب أن يزعج المستخدم بأخطاء */
@@ -389,6 +390,32 @@ function Footer() {
 }
 
 export default function App() {
+  // صوت التنبيه: (1) رسالة Push والموقع مفتوح تصل من عامل الخدمة عبر
+  // postMessage؛ (2) قفل الصوت عند أول تفاعل من المستخدم (سياسة المتصفحات
+  // تمنع التشغيل التلقائي قبل أي نقرة).
+  useEffect(() => {
+    unlockSound();
+    const onFirstInteraction = () => unlockSound();
+    window.addEventListener("pointerdown", onFirstInteraction);
+    window.addEventListener("keydown", onFirstInteraction);
+
+    const onSwMessage = (e) => {
+      if (e.data && e.data.type === "srash:new-message") {
+        playNotifySound();
+      }
+    };
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", onSwMessage);
+    }
+    return () => {
+      window.removeEventListener("pointerdown", onFirstInteraction);
+      window.removeEventListener("keydown", onFirstInteraction);
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("message", onSwMessage);
+      }
+    };
+  }, []);
+
   return (
     <div className="app">
       <GlobalBusy />
