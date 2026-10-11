@@ -46,6 +46,10 @@ def _load_vapid_key():
     raw = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
     if not raw:
         return None, None
+    # A .env file cannot hold real multi-line values, so the PEM normally
+    # arrives with literal "\n" sequences; expand them (a PEM that already
+    # has real newlines contains no backslashes, so this is always safe).
+    raw = raw.replace("\\n", "\n")
     try:
         private = serialization.load_pem_private_key(raw.encode("utf-8"), None)
     except Exception:
