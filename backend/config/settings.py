@@ -179,6 +179,10 @@ else:
         "default": {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
             "LOCATION": "default-snowflake",
+            # LocMemCache's default timeout is 300 seconds — anything stored
+            # without an explicit expiry silently vanished after five
+            # minutes (the old cache-backed sessions did exactly that).
+            "TIMEOUT": 86400,
         }
     }
 
