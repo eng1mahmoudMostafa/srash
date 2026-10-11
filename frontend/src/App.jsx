@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from "react";
-import { Routes, Route, NavLink, useNavigate } from "react-router-dom";
+import { Routes, Route, NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   fetchMe,
   fetchNotifications,
@@ -225,10 +225,13 @@ function Nav() {
       return "light";
     }
   });
+  const location = useLocation();
   const [me, setMe] = useState(null);
   const [copied, setCopied] = useState(false);
 
-  // جلب بيانات المستخدم الحالي لعرض رابط صفحته في كل الصفحات
+  // جلب بيانات المستخدم الحالي لعرض رابط صفحته في كل الصفحات.
+  // إعادة الجلب مع كل تغيّر مسار: بعد الدخول أو التسجيل أو الخروج تتحدّث
+  // الواجهة (الجرس + رابط صفحتي) فورًا بدون تحديث الصفحة يدويًا.
   useEffect(() => {
     let alive = true;
     fetchMe()
@@ -237,7 +240,7 @@ function Nav() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [location.pathname]);
 
   function toggleTheme() {
     const next = theme === "dark" ? "light" : "dark";

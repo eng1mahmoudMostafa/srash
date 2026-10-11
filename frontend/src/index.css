@@ -583,6 +583,24 @@ select:focus-visible,
     flex-shrink: 0;
   }
 
+  /* زر الجرس كذلك — بدون ده قاعدة button أعلاه تمدّه على كل العرض
+     فينفجر شريط التنقل وتخرج القائمة المنسدلة عن حدود الشاشة */
+  .bell-wrap {
+    flex-shrink: 0;
+  }
+  .bell-btn {
+    width: auto;
+    min-height: 0;
+    padding: 4px 10px;
+    flex-shrink: 0;
+  }
+
+  /* القائمة تبقى داخل حدود الشاشة مهما كان موقع الزر */
+  .bell-dd {
+    width: min(78vw, 300px);
+    max-width: calc(100vw - 20px);
+  }
+
   /* أزرار صندوق الرد تتناغم ولا تفيض */
   .reply-compose .row {
     flex-wrap: wrap;
