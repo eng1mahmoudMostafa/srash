@@ -27,7 +27,7 @@ urlpatterns = [
     # PWA manifest + icons (phone notifications show the app icon; without
     # these the install prompt / notification icon silently breaks).
     re_path(
-        r"^manifest\.webmanifest$|^icon-192\.png$|^icon-512\.png$",
+        r"^manifest\.webmanifest$|^icon-192\.png$|^icon-512\.png$|^icon\.svg$",
         config_views.spa_asset,
     ),
     re_path(r"^favicon\.ico$|^vite\.svg$", config_views.spa_asset),
