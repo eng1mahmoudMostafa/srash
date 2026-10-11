@@ -54,7 +54,9 @@ export async function enablePush() {
   if (!sub) {
     const keyRes = await fetchPushKey();
     if (!keyRes.data?.enabled || !keyRes.data?.public_key) {
-      throw new Error("الإشعارات غير مفعّلة على الخادم حاليًا.");
+      throw new Error(
+        "الإشعارات غير مفعّلة على الخادم — المفاتيح (VAPID) غير مضبوطة. راجع ملف .env على السيرفر ثم أعد تحميل الصفحة."
+      );
     }
     sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,

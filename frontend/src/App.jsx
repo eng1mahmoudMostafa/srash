@@ -1,4 +1,11 @@
-import { Suspense, lazy, useCallback, useEffect, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Routes, Route, NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   fetchMe,
@@ -106,6 +113,28 @@ function NotificationsBell() {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
+  const btnRef = useRef(null);
+  const [ddPos, setDdPos] = useState(null);
+
+  // موضع القائمة يُحسب من الزر نفسه ثم يُقصّ داخل حدود الشاشة — فلا تخرج
+  // عن حافة الهاتف أبدًا مهما كان موضع الزر أو طول رابط الحساب.
+  function placeDropdown() {
+    const el = btnRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const vw = window.innerWidth || document.documentElement.clientWidth;
+    const width = Math.min(300, Math.max(220, vw - 24));
+    let left = rect.left + rect.width / 2 - width / 2;
+    left = Math.max(12, Math.min(left, vw - width - 12));
+    setDdPos({ left, top: rect.bottom + 8, width });
+  }
+
+  function toggleOpen() {
+    setOpen((v) => {
+      if (!v) placeDropdown();
+      return !v;
+    });
+  }
 
   const load = useCallback(() => {
     fetchNotifications()
@@ -136,6 +165,19 @@ function NotificationsBell() {
     return () => document.removeEventListener("click", onDocClick);
   }, [open]);
 
+  // القائمة مثبّتة بالنسبة للشاشة (position: fixed) فأغلقها عند التمرير
+  // أو تغيير المقاس حتى لا تطفو بعيدًا عن زرها.
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = () => setOpen(false);
+    window.addEventListener("scroll", close, { passive: true });
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close);
+      window.removeEventListener("resize", close);
+    };
+  }, [open]);
+
   async function onItemClick(n) {
     setOpen(false);
     try {
@@ -160,8 +202,9 @@ function NotificationsBell() {
     <div className="bell-wrap">
       <button
         type="button"
+        ref={btnRef}
         className="bell-btn"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggleOpen}
         title="الإشعارات"
         aria-label={unread ? `الإشعارات (${unread} غير مقروءة)` : "الإشعارات"}
         aria-expanded={open}
@@ -173,7 +216,20 @@ function NotificationsBell() {
         )}
       </button>
       {open && (
-        <div className="bell-dd" role="menu">
+        <div
+          className="bell-dd"
+          role="menu"
+          style={
+            ddPos
+              ? {
+                  position: "fixed",
+                  left: `${ddPos.left}px`,
+                  top: `${ddPos.top}px`,
+                  width: `${ddPos.width}px`,
+                }
+              : undefined
+          }
+        >
           <div className="bell-dd-head">
             <strong>الإشعارات</strong>
             <button
