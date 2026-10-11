@@ -1,6 +1,28 @@
 /* Service Worker — Web Push for صراحة.
    Shows the "new message" notification (never the content: the server only
    sends a generic title/body) and focuses/opens /inbox on click. */
+self.addEventListener("install", () => {
+  // فعّل النسخة الجديدة فورًا حتى لا يبقى عامل قديم عالق عند المستخدمين.
+  try {
+    self.skipWaiting();
+  } catch {
+    /* تجاهل */
+  }
+});
+
+self.addEventListener("activate", (event) => {
+  // سيطر على الصفحات المفتوحة فورًا حتى تصلها رسائل postMessage.
+  event.waitUntil(
+    (async () => {
+      try {
+        await self.clients.claim();
+      } catch {
+        /* تجاهل */
+      }
+    })()
+  );
+});
+
 self.addEventListener("push", (event) => {
   let data = {};
   try {

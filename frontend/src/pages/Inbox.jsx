@@ -50,6 +50,8 @@ export default function Inbox() {
   // تحديث تلقائي: كل 20 ثانية (والتاب ظاهر) وعند الرجوع للتاب — يدمج
   // الرسائل الجديدة فوق القائمة بدون فقد ما حُمّل بـ"عرض المزيد"، فلا
   // يحتاج المستخدم لتحديث الصفحة يدويًا.
+  // + حدث فوري "srash:refresh-inbox" يبثه App لحظة وصول Push — فتظهر
+  // الرسالة في نفس الثانية دون انتظار دورة الـ 20 ثانية.
   useEffect(() => {
     const tick = () => {
       if (document.visibilityState !== "visible") return;
@@ -67,9 +69,11 @@ export default function Inbox() {
     };
     const timer = window.setInterval(tick, 20000);
     document.addEventListener("visibilitychange", tick);
+    window.addEventListener("srash:refresh-inbox", tick);
     return () => {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", tick);
+      window.removeEventListener("srash:refresh-inbox", tick);
     };
   }, []);
 

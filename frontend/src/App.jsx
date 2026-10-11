@@ -7,6 +7,7 @@ import {
   markNotificationRead,
 } from "./api/endpoints";
 import { playNotifySound, unlockSound } from "./sound";
+import { registerServiceWorker } from "./push";
 
 // تحميل كل صفحة عند الحاجة فقط — الحزمة الأولية تصغر والصفحة الرئيسية تظهر أسرع.
 const Home = lazy(() => import("./pages/Home"));
@@ -150,8 +151,13 @@ function NotificationsBell() {
 
   useEffect(() => {
     load();
-    const timer = window.setInterval(load, 60000); // تحديث دوري كل دقيقة
-    return () => window.clearInterval(timer);
+    const onBellPush = () => load();
+    window.addEventListener("srash:refresh-bell", onBellPush);
+    const timer = window.setInterval(load, 15000); // تحديث دوري كل دقيقة
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("srash:refresh-bell", onBellPush);
+    };
   }, [load]);
 
   // إغلاق القائمة عند النقر خارجها
@@ -402,9 +408,16 @@ export default function App() {
     const onSwMessage = (e) => {
       if (e.data && e.data.type === "srash:new-message") {
         playNotifySound();
+        // الرسالة وصلت فعلًا: حدّث الجرس والقائمة فورًا بدل انتظار دورة
+        // الـ polling — هذا هو إصلاح "لازم أحدث الصفحة عشان الرسالة تظهر".
+        window.dispatchEvent(new CustomEvent("srash:refresh-bell"));
+        window.dispatchEvent(new CustomEvent("srash:refresh-inbox"));
       }
     };
     if ("serviceWorker" in navigator) {
+      // سجّل عامل الخدمة عند بدء التطبيق — بدونه لا يصل أي postMessage
+      // ولا يُشغَّل أي صوت عبر مسار الـ Push.
+      registerServiceWorker().catch(() => {});
       navigator.serviceWorker.addEventListener("message", onSwMessage);
     }
     return () => {
