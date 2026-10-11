@@ -27,10 +27,9 @@ urlpatterns = [
     # PWA manifest + icons (phone notifications show the app icon; without
     # these the install prompt / notification icon silently breaks).
     re_path(
-        r"^manifest\.webmanifest$|^icon-192\.png$|^icon-512\.png$|^icon\.svg$",
+        r"^manifest\.webmanifest$|^icon-192\.png$|^icon-512\.png$|^icon\.svg$|^favicon\.ico$",
         config_views.spa_asset,
     ),
-    re_path(r"^favicon\.ico$|^vite\.svg$", config_views.spa_asset),
     # SPA fallback: anything not /api, /admin, /static goes to the React app.
     re_path(r"^(?!api/|admin/|static/|assets/|media/).*$", config_views.spa_index, name="spa"),
 ]
