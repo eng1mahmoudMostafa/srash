@@ -379,3 +379,4 @@ class PasswordRecoverySerializer(serializers.Serializer):
             raise serializers.ValidationError({"new_password": exc.detail})
         attrs["user"] = user
         return attrs
+

@@ -12,12 +12,11 @@ import {
   patchMyProfile,
   patchSettings,
   removeAvatar,
-  sendVerificationEmail,
   subscribe,
   toggleAnonymous,
-  updateEmail,
   uploadAvatar,
 } from "../api/endpoints";
+import { deviceSubscribed, disablePush, enablePush, pushSupported } from "../push";
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -28,11 +27,12 @@ export default function SettingsPage() {
   const [sub, setSub] = useState(null);
   const [settings, setSettings] = useState(null);
 
-  const [emailInput, setEmailInput] = useState("");
   const [transferNote, setTransferNote] = useState("");
-  const [emailError, setEmailError] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // إشعارات فورية (Web Push) على هذا الجهاز — بديل البريد الإلكتروني
+  const [pushOn, setPushOn] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
   // تغيير كلمة المرور (قسم مستقل بمشغله الخاص حتى لا يعطّل غيره)
   const [oldPw, setOldPw] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -42,10 +42,7 @@ export default function SettingsPage() {
 
   const load = useCallback(() => {
     fetchMe()
-      .then((res) => {
-        setMe(res.data);
-        setEmailInput(res.data.email || "");
-      })
+      .then((res) => setMe(res.data))
       .catch(() => {});
     fetchMyProfile()
       .then((res) => setProfile(res.data))
@@ -59,6 +56,13 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => load(), [load]);
+
+  // حالة اشتراك هذا الجهاز في الإشعارات الفورية (بديل البريد الإلكتروني)
+  useEffect(() => {
+    deviceSubscribed()
+      .then((on) => setPushOn(Boolean(on)))
+      .catch(() => {});
+  }, []);
 
   // نسخ رقم التحويل (فودافون كاش) إلى الحافظة
   const copyNumber = () => {
@@ -148,36 +152,26 @@ export default function SettingsPage() {
     }
   }
 
-  const saveEmail = (e) => {
-    e.preventDefault();
-    const value = emailInput.trim();
-    if (!value) {
-      setEmailError("اكتب بريدك الإلكتروني أولًا.");
-      return;
+  // تفعيل/إيقاف الإشعارات الفورية (Web Push) على هذا الجهاز — بديل البريد
+  async function togglePushDevice() {
+    setPushBusy(true);
+    try {
+      if (pushOn) {
+        await disablePush();
+        setPushOn(false);
+        toast("تم إيقاف الإشعارات على هذا الجهاز.");
+      } else {
+        await enablePush();
+        setPushOn(true);
+        toast("🔔 تم تفعيل الإشعارات الفورية على هذا الجهاز.");
+      }
+    } catch (err) {
+      const m = err?.response ? handleError(err) : err.message;
+      toast(m, "err");
+    } finally {
+      setPushBusy(false);
     }
-    setBusy(true);
-    setEmailError("");
-    fetchCsrf()
-      .then(() => updateEmail(value))
-      .then(() => {
-        toast("✅ تم ربط بريدك الإلكتروني بحسابك بنجاح.");
-        load();
-      })
-      .catch((err) => {
-        const m = handleError(err);
-        toast(m, "err");
-        setEmailError(
-          /مستخدم بالفعل/.test(m)
-            ? m +
-                " — إن كان حسابًا قديمًا أنشأته سابقًا بنفس البريد فسجّل الدخول به، أو استخدم بريدًا آخر."
-            : m
-        );
-      })
-      .finally(() => setBusy(false));
-  };
-
-  const verifyEmail = () =>
-    run(() => sendVerificationEmail(), "تم إرسال رابط التوثيق إلى بريدك.");
+  }
 
   const doSubscribe = () =>
     run(() => subscribe(transferNote.trim()), "تم إنشاء طلب الاشتراك.");
@@ -188,7 +182,7 @@ export default function SettingsPage() {
       const res = await patchSettings({
         allow_anonymous: settings.allow_anonymous,
         gap_minutes: Number(settings.gap_minutes) || 0,
-        notify_new_message: settings.notify_new_message,
+        push_notifications: settings.push_notifications,
       });
       // مزامنة فورية: checkbox الخصوصية = زر استقبال الرسائل
       const val = res?.data?.allow_anonymous;
@@ -308,44 +302,39 @@ export default function SettingsPage() {
           </>
         )}
       </section>
-      {/* ---- البريد الإلكتروني ---- */}
+      {/* ---- الإشعارات الفورية ---- */}
       <section className="card">
-        <h2 className="section-title">البريد الإلكتروني</h2>
-        {me && (
-          <p className="hint">
-            الحالة:{" "}
-            {me.email
-              ? me.email_verified
-                ? "✔ موثق"
-                : "غير موثق بعد"
-              : "لا يوجد بريد مسجل"}
+        <h2 className="section-title">🔔 الإشعارات الفورية</h2>
+        <p className="hint">
+          تنبيه فوري على هذا الجهاز أول ما تصل رسالة مجهولة — يعمل حتى والموقع
+          مغلق، ودون أي محتوى للرسالة. (بديل البريد الإلكتروني تمامًا.)
+        </p>
+        {!pushSupported() ? (
+          <p className="error">
+            متصفحك لا يدعم الإشعارات الفورية — استخدم Chrome أو Firefox على
+            الهاتف. يبقى الجرس 🔔 داخل الموقع يعمل في كل الحالات.
           </p>
-        )}
-        <form onSubmit={saveEmail} className="form">
-          <label>
-            بريدك الإلكتروني
-            <input
-              type="email"
-              value={emailInput}
-              onChange={(e) => setEmailInput(e.target.value)}
-              placeholder="name@example.com"
-            />
-            <span className="hint">لتصلك إشعارات وصول رسائل جديدة (دون محتواها) ورابط توثيق بريدك.</span>
-          </label>
+        ) : (
           <div className="row">
-            <button disabled={busy} type="submit">حفظ البريد</button>
             <button
-              disabled={busy || !me?.email || me?.email_verified}
               type="button"
-              onClick={verifyEmail}
+              disabled={pushBusy}
+              onClick={togglePushDevice}
             >
-              أرسل رابط التوثيق
+              {pushBusy
+                ? "جارٍ التفعيل..."
+                : pushOn
+                  ? "🔕 إيقاف إشعارات هذا الجهاز"
+                  : "🔔 تفعيل الإشعارات على هذا الجهاز"}
             </button>
+            <span className="hint">
+              {pushOn ? "مفعّلة على هذا الجهاز ✅" : "معطّلة على هذا الجهاز"}
+            </span>
           </div>
-          {emailError && (
-            <p className="error warn-email" role="alert">{emailError}</p>
-          )}
-        </form>
+        )}
+        <p className="hint">
+          يمكنك دائمًا سحب الإذن من إعدادات المتصفح — لن يتأثر استلام رسائلك.
+        </p>
       </section>
 
       {/* ---- تغيير كلمة المرور ---- */}
@@ -395,7 +384,7 @@ export default function SettingsPage() {
           </button>
         </form>
         <p className="hint">
-          نسيتها؟ <Link to="/forgot-password">استعدها عبر بريدك</Link> من
+          نسيتها؟ <Link to="/forgot-password">استعدها بسؤال الأمان</Link> من
           صفحة تسجيل الدخول.
         </p>
       </section>
@@ -494,12 +483,12 @@ export default function SettingsPage() {
           <label className="check">
             <input
               type="checkbox"
-              checked={settings.notify_new_message}
+              checked={settings.push_notifications}
               onChange={(e) =>
-                setSettings({ ...settings, notify_new_message: e.target.checked })
+                setSettings({ ...settings, push_notifications: e.target.checked })
               }
             />
-            إشعار عند وصول رسالة جديدة (يتطلب بريدًا مسجلًا)
+            إشعار فوري عند وصول رسالة جديدة (على أجهزتك المُفعّل عليها الإشعارات)
           </label>
           <button disabled={busy} type="submit">حفظ إعدادات الخصوصية</button>
         </form>

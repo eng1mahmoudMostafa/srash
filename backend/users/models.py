@@ -18,11 +18,16 @@ class User(AbstractUser):
         help_text="Optional; the public slug used in shareable URLs.",
         validators=[username_validator],
     )
-    email = models.EmailField(blank=True, null=True)
-    email_verified = models.BooleanField(default=False)
+    email = models.EmailField(blank=True, null=True, editable=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # Password recovery WITHOUT e-mail: the question stays readable (it is
+    # shown to the owner at recovery time), the answer only ever exists as a
+    # salted PBKDF2 hash — never in plaintext (matches users/0006 migration).
+    security_question = models.CharField(max_length=200, blank=True, default="")
+    security_answer_hash = models.CharField(max_length=255, blank=True, default="")
 
     # Pause receiving anonymous messages (temporary block).
     accept_anonymous = models.BooleanField(default=True)
@@ -41,6 +46,44 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
+
+    @property
+    def has_security_question(self) -> bool:
+        """True when this account can be recovered via its own Q&A."""
+        return bool(self.security_question and self.security_answer_hash)
+
+    @staticmethod
+    def _normalize_security_answer(value) -> str:
+        """Collapse whitespace and fold the Arabic alef/yeh/teh-marbuta
+        variants so a tiny spelling difference never locks the owner out."""
+        text = " ".join(str(value or "").split())
+        for variant, canonical in (
+            ("أ", "ا"),
+            ("إ", "ا"),
+            ("آ", "ا"),
+            ("ى", "ي"),
+            ("ة", "ه"),
+        ):
+            text = text.replace(variant, canonical)
+        return text
+
+    def set_security_answer(self, answer) -> None:
+        """Store the answer only as a salted PBKDF2 hash (never plaintext)."""
+        from django.contrib.auth.hashers import make_password
+
+        self.security_answer_hash = make_password(
+            self._normalize_security_answer(answer)
+        )
+
+    def check_security_answer(self, answer) -> bool:
+        """True when `answer` matches the stored hash (normalized first)."""
+        if not self.security_answer_hash:
+            return False
+        from django.contrib.auth.hashers import check_password
+
+        return check_password(
+            self._normalize_security_answer(answer), self.security_answer_hash
+        )
 
 
 class Profile(models.Model):
@@ -139,9 +182,9 @@ class UserSettings(models.Model):
     allow_anonymous = models.BooleanField(default=True)
     # Enable per-source quiet-down: at most one message per period.
     gap_minutes = models.PositiveIntegerField(default=0)
-    # E-mail alert on new messages: ON by default (it only fires when the
-    # account has a linked, verified e-mail and never includes content).
-    notify_new_message = models.BooleanField(default=True)
+    # Web Push alert on new messages: ON by default. Replaces the removed
+    # e-mail alert (users/0006) — the browser delivers it, never the body.
+    push_notifications = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

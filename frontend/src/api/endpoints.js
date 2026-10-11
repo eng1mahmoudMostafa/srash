@@ -3,21 +3,37 @@ import { api, fetchCsrf } from "./client";
 // Auth
 // After register/login the server rotates the CSRF token; refresh our
 // cookie immediately so the very next mutation can't fail with CSRF.
-export const register = (username, password, email = "", fullName = "") =>
+export const register = (
+  username,
+  password,
+  fullName,
+  securityQuestion,
+  securityAnswer
+) =>
   api
     .post("/auth/register/", {
       username,
       password,
       full_name: fullName,
-      ...(email ? { email } : {}),
+      // الاستعادة بسؤال الأمان فقط — لا بريد إلكتروني إطلاقًا.
+      security_question: securityQuestion,
+      security_answer: securityAnswer,
     })
     .then(() => fetchCsrf());
 export const login = (username, password) =>
   api.post("/auth/login/", { username, password }).then(() => fetchCsrf());
 export const logout = () => api.post("/auth/logout/");
 export const fetchMe = () => api.get("/auth/me/");
-export const updateEmail = (email) => api.patch("/auth/me/", { email });
-export const sendVerificationEmail = () => api.post("/auth/verify-email/send/");
+
+// استعادة كلمة المرور عبر سؤال الأمان المسجَّل عند إنشاء الحساب
+export const recoveryStart = (username) =>
+  api.post("/auth/recovery/", { username });
+export const recoveryConfirm = (username, securityAnswer, newPassword) =>
+  api.post("/auth/recovery-confirm/", {
+    username,
+    security_answer: securityAnswer,
+    new_password: newPassword,
+  });
 
 // Public profile + sending
 export const fetchPublicProfile = (username) =>
@@ -84,16 +100,12 @@ export const subscribe = (transferNote = "") =>
 export const fetchSubscriptionStatus = () =>
   api.get("/settings/subscribe/status/");
 
-// Password — تغيير (للمسجّل دخوله) + استعادة عبر رابط يُرسل للبريد
+// Password — تغيير (للمسجّل دخوله) + الاستعادة بسؤال الأمان (بدون بريد)
 export const changePassword = (oldPassword, newPassword) =>
   api.post("/auth/change-password/", {
     old_password: oldPassword,
     new_password: newPassword,
   });
-export const forgotPassword = (email) =>
-  api.post("/auth/forgot-password/", { email });
-export const resetPassword = (token, newPassword) =>
-  api.post("/auth/reset-password/", { t: token, new_password: newPassword });
 
 // In-app notifications (الجرس في شريط التنقل — بدون محتوى الرسائل)
 export const fetchNotifications = () => api.get("/notifications/");
@@ -101,3 +113,10 @@ export const markNotificationRead = (id) =>
   api.post(`/notifications/${id}/read/`);
 export const markAllNotificationsRead = () =>
   api.post("/notifications/read-all/");
+
+// Web Push — إشعار فوري على الجهاز يحل محل البريد الإلكتروني تمامًا
+export const fetchPushKey = () => api.get("/notifications/push/key/");
+export const subscribePush = (subscription) =>
+  api.post("/notifications/push/subscribe/", subscription);
+export const unsubscribePush = (endpoint) =>
+  api.post("/notifications/push/unsubscribe/", { endpoint });

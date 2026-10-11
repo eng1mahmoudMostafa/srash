@@ -8,10 +8,7 @@ from django.contrib.auth import (
     logout,
     update_session_auth_hash,
 )
-from django.core import signing
 from django.core.files.base import ContentFile
-from django.core.mail import send_mail
-from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -19,12 +16,6 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from common.mail import (
-    VERIFY_SALT,
-    send_async,
-    send_email_verification_email,
-    send_password_reset_email,
-)
 from common.rate import (
     RateLimitExceeded,
     check_login_rate_limit,
@@ -33,10 +24,9 @@ from common.rate import (
 from users.models import Profile, Subscription, UserSettings
 from users.serializers import (
     ChangePasswordSerializer,
-    EmailUpdateSerializer,
     LoginSerializer,
     MeSerializer,
-    PasswordResetConfirmSerializer,
+    PasswordRecoverySerializer,
     ProfileSerializer,
     ProfileUpdateSerializer,
     RegisterSerializer,
@@ -108,27 +98,6 @@ class MeView(APIView):
     def get(self, request):
         return Response(MeSerializer(request.user, context={"request": request}).data)
 
-    def patch(self, request):
-        """Update e-mail address (resets verification until re-confirmed)."""
-        serializer = EmailUpdateSerializer(request.user, data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        user.email_verified = False
-        user.save(update_fields=["email_verified"])
-        return Response(MeSerializer(user, context={"request": request}).data)
-
-
-class SendVerificationEmailView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        if not request.user.email:
-            return Response({"detail": "أضف بريدك الإلكتروني أولًا."}, status=400)
-        from common.mail import send_async
-
-        send_async(send_email_verification_email, request.user)
-        return Response({"detail": "تم إرسال رابط التوثيق إلى بريدك."})
-
 
 class ChangePasswordView(APIView):
     """POST /api/auth/change-password/ — proof of the current password.
@@ -158,110 +127,57 @@ class ChangePasswordView(APIView):
         return Response({"detail": "تم تغيير كلمة المرور بنجاح."})
 
 
-class EmailDiagView(APIView):
-    """TEMPORARY diagnostic: shows the e-mail settings the *live* process is
-    actually using, and (with ?send=1) attempts one real SMTP send.
+class PasswordRecoveryStartView(APIView):
+    """POST /api/auth/recovery/ — reveal the account's own security question.
 
-    Protected by DJANGO_SECRET_KEY in the `k` query param so it can never be
-    probed by strangers. Never returns the password itself.
-    """
-
-    permission_classes = [permissions.AllowAny]
-
-    def get(self, request):
-        if request.query_params.get("k", "") != settings.SECRET_KEY:
-            return Response({"detail": "forbidden"}, status=status.HTTP_403_FORBIDDEN)
-
-        info = {
-            "backend": dj_settings.EMAIL_BACKEND,
-            "host": dj_settings.EMAIL_HOST,
-            "port": dj_settings.EMAIL_PORT,
-            "use_tls": dj_settings.EMAIL_USE_TLS,
-            "user": dj_settings.EMAIL_HOST_USER,
-            "user_len": len(dj_settings.EMAIL_HOST_USER or ""),
-            "pwd_len": len(dj_settings.EMAIL_HOST_PASSWORD or ""),
-            "pwd_has_spaces": " " in (dj_settings.EMAIL_HOST_PASSWORD or ""),
-            "from": dj_settings.DEFAULT_FROM_EMAIL,
-            "debug": dj_settings.DEBUG,
-        }
-
-        if request.query_params.get("send") == "1":
-            to = dj_settings.EMAIL_HOST_USER
-            try:
-                send_mail(
-                    subject="صراحة: اختبار SMTP من السيرفر",
-                    message=(
-                        "لو وصلتك الإيميل ده، إعدادات SMTP على السيرفر شغالة صح.\n"
-                        f"backend={dj_settings.EMAIL_BACKEND}"
-                    ),
-                    from_email=dj_settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[to],
-                    fail_silently=False,
-                )
-                info["send"] = "SENT_OK"
-            except Exception as exc:
-                info["send"] = "FAILED"
-                info["error"] = f"{type(exc).__name__}: {exc}"
-        return Response(info)
-
-
-class PasswordResetSendView(APIView):
-    """POST /api/auth/forgot-password/ — e-mail a 1-hour reset link.
-
-    Always returns the same 200 body whether or not the address exists,
-    so this endpoint cannot be used to enumerate accounts.
+    Unknown usernames and accounts without a question get the exact same
+    body shape, so a prober can never tell registered names from free ones.
     """
 
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        try:
-            check_password_rate_limit(request, "pwdreset")
-        except RateLimitExceeded as exc:
-            return Response(
-                {"detail": exc.message},
-                status=status.HTTP_429_TOO_MANY_REQUESTS,
-            )
-        email = str(request.data.get("email", "") or "").strip().lower()
-        if email:
+        username = str(request.data.get("username", "") or "").strip().lower()
+        user = None
+        if username:
             user = (
-                User.objects.filter(email__iexact=email, is_active=True).first()
+                User.objects.filter(username__iexact=username, is_active=True)
+                .only("security_question", "security_answer_hash")
+                .first()
             )
-            if user is not None:
-                # Background thread: SMTP latency never delays the response.
-                send_async(send_password_reset_email, user)
+        question = ""
+        if user is not None and user.has_security_question:
+            question = user.security_question
         return Response(
-            {
-                "detail": (
-                    "إذا كان هذا البريد مسجّلًا فسيصلك رابط إعادة التعيين خلال دقائق."
-                )
-            }
+            {"recoverable": bool(question), "security_question": question}
         )
 
 
-class PasswordResetConfirmView(APIView):
-    """POST /api/auth/reset-password/ — token (from the e-mail) + new password."""
+class PasswordRecoveryConfirmView(APIView):
+    """POST /api/auth/recovery-confirm/ — answer the question, set a new password.
+
+    A wrong answer and an unknown username produce identical errors (the
+    serializer guarantees it), so nobody can probe which accounts exist.
+    """
 
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         try:
-            # Token brute-force protection (separate bucket from the others).
-            check_password_rate_limit(request, "pwdconfirm")
+            check_password_rate_limit(request, "pwdrecover")
         except RateLimitExceeded as exc:
             return Response(
                 {"detail": exc.message},
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
-        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer = PasswordRecoverySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
         user.set_password(serializer.validated_data["new_password"])
         user.save(update_fields=["password"])
         return Response(
-            {"detail": "تم إعادة تعيين كلمة المرور — سجّل دخولك الآن."}
+            {"detail": "تم تعيين كلمة المرور الجديدة — سجّل دخولك الآن."}
         )
-
 
 class PublicProfileView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -319,33 +235,6 @@ class ToggleAnonymousView(APIView):
             us.allow_anonymous = user.accept_anonymous
             us.save(update_fields=["allow_anonymous"])
         return Response({"accept_anonymous": user.accept_anonymous})
-
-
-class VerifyEmailTokenView(APIView):
-    permission_classes = [permissions.AllowAny]
-
-    def get(self, request):
-        token = request.query_params.get("t", "")
-        ok = False
-        try:
-            data = signing.loads(token, salt=VERIFY_SALT, max_age=60 * 60 * 48)
-            user = User.objects.filter(pk=data.get("uid")).first()  # noqa: F821
-        except Exception:
-            user = None
-        if user is not None:
-            user.email_verified = True
-            user.save(update_fields=["email_verified"])
-            ok = True
-        body = (
-            "<h2>✅ تم توثيق بريدك بنجاح.</h2><p><a href='/settings'>عودة للإعدادات</a></p>"
-            if ok
-            else "<h2>❌ الرابط غير صالح أو انتهت صلاحيته.</h2>"
-        )
-        html = (
-            "<html dir='rtl' lang='ar'><body style=\"font-family:sans-serif;"
-            f"text-align:center;padding-top:70px\">{body}</body></html>"
-        )
-        return HttpResponse(html)
 
 
 class MyProfileView(APIView):

@@ -8,8 +8,9 @@ export default function Register() {
   const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [securityQuestion, setSecurityQuestion] = useState("");
+  const [securityAnswer, setSecurityAnswer] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -19,7 +20,13 @@ export default function Register() {
     setError("");
     try {
       await fetchCsrf();
-      await register(username, password, email.trim(), fullName.trim());
+      await register(
+        username,
+        password,
+        fullName.trim(),
+        securityQuestion.trim(),
+        securityAnswer.trim()
+      );
       toast("✅ تم إنشاء حسابك بنجاح.");
       navigate("/inbox");
     } catch (err) {
@@ -64,23 +71,33 @@ export default function Register() {
           />
         </label>
         <label>
-          البريد الإلكتروني
+          سؤال استعادة كلمة المرور (إجباري)
           <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="name@example.com"
+            value={securityQuestion}
+            onChange={(e) => setSecurityQuestion(e.target.value)}
+            maxLength={200}
+            required
+            placeholder="مثال: ما اسم مدرستي الابتدائية؟"
           />
           <span className="hint">
-            لتصلك إشعارات وصول رسائل جديدة (دون محتواها) ورابط توثيق بريدك.
+            لو نسيت كلمة المرور هذا هو السؤال الوحيد الذي سيُطلب لك — اكتب
+            سؤالًا واضحًا منتهيًا بعلامة استفهام (لا يقل عن 10 أحرف).
           </span>
         </label>
-        {!email.trim() && (
-          <p className="error warn-email" role="alert">
-            ⚠️ لن تعرف أنك تلقيت رسالة حتى تربط بريدك الإلكتروني الخاص بحسابك —
-            اتركه الآن وستتمكن من ربطه لاحقًا من الإعدادات.
-          </p>
-        )}
+        <label>
+          الإجابة على سؤال الاستعادة (إجباري)
+          <input
+            value={securityAnswer}
+            onChange={(e) => setSecurityAnswer(e.target.value)}
+            maxLength={100}
+            required
+            placeholder="مثال: النور"
+          />
+          <span className="hint">
+            تُحفَظ مُشفَّرة (لا يراها أحد) — اكتبها كما ستتذكرها، فالاختلاف
+            البسيط في الكتابة العربية لا يمنع الاستعادة.
+          </span>
+        </label>
         {error && <p className="error">{error}</p>}
         <button disabled={busy} type="submit">
           {busy ? "جارٍ الإنشاء..." : "إنشاء الحساب"}

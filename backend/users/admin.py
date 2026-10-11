@@ -13,6 +13,19 @@ class UserAdmin(DjangoUserAdmin):
         ("أنظمة مجهولة", {"fields": ("accept_anonymous",)}),
     )
 
+    def get_fieldsets(self, request, obj=None):
+        # `email` is non-editable since the no-e-mail pivot (users/0006):
+        # drop it from the inherited fieldsets or the ModelForm raises
+        # "Unknown field(s) (email)" and the admin page breaks entirely.
+        fieldsets = []
+        for title, opts in super().get_fieldsets(request, obj):
+            fields = tuple(
+                f for f in opts.get("fields", ()) if f != "email"
+            )
+            if fields:
+                fieldsets.append((title, {**opts, "fields": fields}))
+        return tuple(fieldsets)
+
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
@@ -24,7 +37,7 @@ class ProfileAdmin(admin.ModelAdmin):
 
 @admin.register(UserSettings)
 class UserSettingsAdmin(admin.ModelAdmin):
-    list_display = ("user", "allow_anonymous", "gap_minutes", "notify_new_message")
+    list_display = ("user", "allow_anonymous", "gap_minutes", "push_notifications")
     search_fields = ("user__username",)
 
 

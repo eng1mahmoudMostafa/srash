@@ -52,7 +52,7 @@ export default function Login() {
         </button>
       </form>
       <p className="hint">
-        نسيت كلمة المرور؟ <Link to="/forgot-password">استعدها عبر بريدك</Link>
+        نسيت كلمة المرور؟ <Link to="/forgot-password">استعدها بسؤال الأمان</Link>
       </p>
     </section>
   );

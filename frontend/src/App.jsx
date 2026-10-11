@@ -16,7 +16,6 @@ const Inbox = lazy(() => import("./pages/Inbox"));
 const Sent = lazy(() => import("./pages/Sent"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
-const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 function RouteFallback() {
@@ -347,7 +346,6 @@ export default function App() {
             <Route path="/sent" element={<Sent />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
