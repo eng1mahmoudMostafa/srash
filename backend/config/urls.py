@@ -24,6 +24,12 @@ urlpatterns = [
     re_path(r"^sw\.js$", config_views.spa_asset, name="service-worker"),
     # Notification chime (played by the bell / push handler).
     re_path(r"^notify\.wav$", config_views.spa_asset, name="notify-sound"),
+    # PWA manifest + icons (phone notifications show the app icon; without
+    # these the install prompt / notification icon silently breaks).
+    re_path(
+        r"^manifest\.webmanifest$|^icon-192\.png$|^icon-512\.png$",
+        config_views.spa_asset,
+    ),
     re_path(r"^favicon\.ico$|^vite\.svg$", config_views.spa_asset),
     # SPA fallback: anything not /api, /admin, /static goes to the React app.
     re_path(r"^(?!api/|admin/|static/|assets/|media/).*$", config_views.spa_index, name="spa"),

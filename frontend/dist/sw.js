@@ -33,10 +33,15 @@ self.addEventListener("push", (event) => {
   const title = data.title || "صراحة";
   const options = {
     body: data.body || "لديك رسالة مجهولة جديدة 📩",
-    tag: data.tag || "srash-new-message",
-    renotify: false,
+    // tag فريد لكل رسالة + renotify: رسالتان متتاليتان والموقع مقفول كانت
+    // الثانية تستبدل الأولى بصمت (نفس الـ tag وrenotify:false) فتضيع.
+    tag: data.tag || `srash-new-message-${Date.now()}`,
+    renotify: true,
     dir: "rtl",
     lang: "ar",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    vibrate: [200, 100, 200],
     data: { url: data.url || "/inbox" },
   };
   event.waitUntil(
@@ -58,7 +63,16 @@ self.addEventListener("push", (event) => {
           /* بعض المتصفحات لا تدعم visibilityState على الـ client */
         }
       }
-      for (const c of windows) c.postMessage({ type: "srash:new-message" });
+      // بثّ للتابات المفتوحة (إن وجدت) لتشغيل الصوت والتحديث الفوري —
+      // مغلّف بـ try: مراسلة عميل غير خاضع للسيطرة قد ترمي استثناءً،
+      // ويجب ألا يمنع ذلك ظهور إشعار النظام أبدًا.
+      for (const c of windows) {
+        try {
+          c.postMessage({ type: "srash:new-message" });
+        } catch {
+          /* تجاهل */
+        }
+      }
       // Fallback للمتصفحات التي لا تدعم visibilityState: لو لم نستطع
       // التأكد من وجود تاب مرئي، لا نكتم — صوت زائد أفضل من صمت تام.
       if (anyVisible) options.silent = true;

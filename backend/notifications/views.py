@@ -99,15 +99,13 @@ class PushSubscribeView(APIView):
                 "p256dh": p256dh,
                 "auth": auth,
                 "is_active": True,
+                "user_agent": str(
+                    request.META.get("HTTP_USER_AGENT", "") or ""
+                )[:255],
             },
         )
-        # Retire any older subscription for this user: a stale one (e.g.
-        # created before a VAPID key rotation) keeps returning 403 on
-        # every message and never delivers — deactivate it once the new
-        # endpoint is saved.
-        PushSubscription.objects.filter(user=request.user).exclude(
-            endpoint=endpoint[:500]
-        ).update(is_active=False)
+        # ملاحظة مقصودة: لا نعطّل اشتراكات المستخدم الأخرى — كل جهاز
+        # (موبايل + لابتوب) له اشتراكه الخاص ويجب أن يصله الإشعار.
         return Response({"detail": "تم تفعيل الإشعارات الفورية على هذا الجهاز."})
 
 

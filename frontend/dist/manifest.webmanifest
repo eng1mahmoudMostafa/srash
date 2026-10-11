@@ -1,0 +1,25 @@
+{
+  "name": "صراحة بلا كذب — رسائل مجهولة",
+  "short_name": "صراحة",
+  "description": "استقبل رسائل مجهولة بأمان — إشعار فوري أول ما تصل رسالة.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "dir": "rtl",
+  "lang": "ar",
+  "background_color": "#ffffff",
+  "theme_color": "#0ea5e9",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

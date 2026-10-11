@@ -27,8 +27,11 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 logger = logging.getLogger(__name__)
 
-# Retry window if the device is briefly offline.
-PUSH_TTL = 300
+# Retry window if the device is briefly offline: 7 days so a phone that was
+# off/out of coverage still gets the "new message" alert when it comes back.
+# (The old 300s value silently discarded the push if the device was offline
+# for more than 5 minutes — a top reason for "no notification while away".)
+PUSH_TTL = 7 * 24 * 3600
 
 
 def _b64url_decode(value: str) -> bytes:
