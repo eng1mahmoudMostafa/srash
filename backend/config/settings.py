@@ -224,6 +224,16 @@ if os.environ.get("COOKIE_SECURE", "0") == "1":
     SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
 # ---------------------------------------------------------------------------
+# Password hashing — tuned for the small free-tier worker (see common/hashers)
+# ---------------------------------------------------------------------------
+PASSWORD_HASHERS = [
+    "common.hashers.FastArgon2PasswordHasher",
+    "django.contrib.auth.hashers.Argon2PasswordHasher",  # verifies old hashes
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+]
+
+# ---------------------------------------------------------------------------
 # DRF throttles — a second layer of defense on top of the app-level limiter
 # (protects login/register/CSRF endpoints from credential stuffing too).
 # ---------------------------------------------------------------------------

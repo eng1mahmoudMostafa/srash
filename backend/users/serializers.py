@@ -1,3 +1,4 @@
+import logging
 import re
 
 from django.contrib.auth import authenticate
@@ -6,6 +7,8 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from users.models import Profile, Subscription, User, UserSettings
+
+logger = logging.getLogger(__name__)
 
 # Real Arabic/Latin names only (no digits/symbols), at least two words.
 _REAL_NAME_RE = re.compile(r"^[\u0621-\u064A\u0670-\u06D3a-zA-Z '’\u0640]{2,60}$")
@@ -136,15 +139,30 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, trim_whitespace=False)
 
     def validate(self, attrs):
+        raw_password = attrs.get("password", "")
         user = authenticate(
             request=self.context.get("request"),
             username=attrs.get("username", "").strip(),
-            password=attrs.get("password", ""),
+            password=raw_password,
         )
         if user is None or not user.is_active:
             raise serializers.ValidationError(
                 {"detail": "كلمة المرور أو اسم المستخدم غير صحيح."}
             )
+        # Upgrade a legacy heavy hash (e.g. the 100 MB Argon2 default that
+        # stalls the free-tier worker) to the lean default right here: this
+        # is the one moment we still hold the plaintext, so every later
+        # login/verify is fast. A parse failure must never block login.
+        try:
+            from common.hashers import FastArgon2PasswordHasher
+
+            if user.password.startswith("argon2") and "m=" in user.password:
+                match = re.search(r"m=(\d+),", user.password)
+                if match and int(match.group(1)) > FastArgon2PasswordHasher.memory_cost:
+                    user.set_password(raw_password)
+                    user.save(update_fields=["password"])
+        except Exception:
+            logger.warning("legacy hash upgrade skipped", exc_info=True)
         attrs["user"] = user
         return attrs
 
