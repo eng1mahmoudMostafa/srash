@@ -101,6 +101,13 @@ class PushSubscribeView(APIView):
                 "is_active": True,
             },
         )
+        # Retire any older subscription for this user: a stale one (e.g.
+        # created before a VAPID key rotation) keeps returning 403 on
+        # every message and never delivers — deactivate it once the new
+        # endpoint is saved.
+        PushSubscription.objects.filter(user=request.user).exclude(
+            endpoint=endpoint[:500]
+        ).update(is_active=False)
         return Response({"detail": "تم تفعيل الإشعارات الفورية على هذا الجهاز."})
 
 

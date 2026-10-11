@@ -164,7 +164,10 @@ def send_push(subscription, payload: dict) -> bool:
             ok = 200 <= response.status < 300
     except urllib.error.HTTPError as exc:
         # 404/410 mean the subscription is gone for good — stop retrying it.
-        if exc.code in (404, 410):
+        # 403 means our VAPID key no longer matches this subscription (the
+        # keys were regenerated after it was created): retire it the same
+        # way so the next send never wastes a request on a dead endpoint.
+        if exc.code in (404, 410, 403):
             subscription.is_active = False
             subscription.save(update_fields=["is_active"])
         else:
