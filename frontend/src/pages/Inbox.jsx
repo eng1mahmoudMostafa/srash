@@ -47,6 +47,32 @@ export default function Inbox() {
     load();
   }, [load]);
 
+  // تحديث تلقائي: كل 20 ثانية (والتاب ظاهر) وعند الرجوع للتاب — يدمج
+  // الرسائل الجديدة فوق القائمة بدون فقد ما حُمّل بـ"عرض المزيد"، فلا
+  // يحتاج المستخدم لتحديث الصفحة يدويًا.
+  useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState !== "visible") return;
+      fetchInbox(1)
+        .then((res) => {
+          const results = (res.data && res.data.results) || [];
+          setHasNext(Boolean(res.data && res.data.has_next));
+          setMessages((prev) => {
+            const known = new Set(prev.map((m) => m.id));
+            const fresh = results.filter((m) => !known.has(m.id));
+            return fresh.length ? [...fresh, ...prev] : prev;
+          });
+        })
+        .catch(() => {});
+    };
+    const timer = window.setInterval(tick, 20000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, []);
+
   async function markRead(id) {
     try {
       await readMessage(id);

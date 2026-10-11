@@ -185,8 +185,11 @@ else:
 # ---------------------------------------------------------------------------
 # Sessions + HttpOnly cookies (SameSite=Lax, Secure when COOKIE_SECURE=1)
 # ---------------------------------------------------------------------------
-SESSION_ENGINE = "django.contrib.sessions.backends.cache"
-SESSION_CACHE_ALIAS = "default"
+# Sessions live in the DATABASE, not the cache: without Redis the cache is
+# a per-process LocMemCache that dies with every web-worker restart, which
+# logs everyone out (observed: ~5 minutes on PythonAnywhere). DB sessions
+# survive worker recycles; the cache stays for rate limiting only.
+SESSION_ENGINE = "django.contrib.sessions.backends.db"
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "0") == "1"
 SESSION_COOKIE_SAMESITE = "Lax"

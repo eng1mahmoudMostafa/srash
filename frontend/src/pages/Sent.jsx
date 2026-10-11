@@ -36,6 +36,31 @@ export default function Sent() {
     load();
   }, [load]);
 
+  // تحديث تلقائي كل 20 ثانية (والتاب ظاهر) وعند الرجوع للتاب — نفس منطق
+  // الصندوق: يدمج الجديد فوق القائمة بدون فقد "عرض المزيد".
+  useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState !== "visible") return;
+      fetchSent(1)
+        .then((res) => {
+          const results = (res.data && res.data.results) || [];
+          setHasNext(Boolean(res.data && res.data.has_next));
+          setMessages((prev) => {
+            const known = new Set(prev.map((m) => m.id));
+            const fresh = results.filter((m) => !known.has(m.id));
+            return fresh.length ? [...fresh, ...prev] : prev;
+          });
+        })
+        .catch(() => {});
+    };
+    const timer = window.setInterval(tick, 20000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, []);
+
   async function removeFromRecipient(id) {
     if (!window.confirm("سيتم حذف هذه الرسالة من صندوق المستخدم الآخر أيضًا. متأكد؟")) {
       return;
