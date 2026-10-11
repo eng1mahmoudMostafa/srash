@@ -43,7 +43,11 @@ export default function Inbox() {
   useEffect(() => {
     fetchMe()
       .then((res) => setMe(res.data))
-      .catch(() => setMe(null));
+      .catch((err) => {
+        // اخرج من حالة "غير مسجّل" فقط عند رفض مصادقة حقيقي — عطل عابر
+        // (HTML/شبكة/5xx) لا يُسقط الجلسة ولا يخفي صندوق الرسائل.
+        if (!err || err.isAuthError) setMe(null);
+      });
     load();
   }, [load]);
 

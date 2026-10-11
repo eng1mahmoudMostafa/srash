@@ -20,6 +20,7 @@ from django.http import (
     FileResponse,
     HttpResponse,
     HttpResponseNotFound,
+    JsonResponse,
 )
 from django.utils.http import http_date, quote_etag
 
@@ -101,6 +102,18 @@ def spa_asset(request, path=None):
         immutable = rel.replace(os.sep, "/").startswith("assets/")
         return _serve_static(request, full, immutable=immutable)
     return spa_index(request)
+
+
+def api_not_found(request, path=""):
+    """JSON 404 for any /api/... URL that matched no real endpoint.
+
+    Django's built-in 404 is an HTML page; the SPA fetches /api as JSON, so an
+    HTML answer used to crash the client parser and surface a red error (and a
+    fake "please log in" state). Every API miss must stay machine-readable.
+    """
+    return JsonResponse(
+        {"detail": "المسار غير موجود."}, status=404
+    )
 
 
 def media_file(request, path):

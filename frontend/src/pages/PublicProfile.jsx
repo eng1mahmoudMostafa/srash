@@ -50,7 +50,11 @@ export default function PublicProfile() {
       .catch((err) => setError(handleError(err) || "المستخدم غير موجود."));
     fetchMe()
       .then((res) => setMe(res.data))
-      .catch(() => setMe(null))
+      .catch((err) => {
+        // رفض مصادقة حقيقي فقط = "غير مسجّل". أي خطأ آخر (صفحة HTML /
+        // شبكة / 5xx) لا يُظهر نافذة تسجيل الدخول بدل الإرسال.
+        if (!err || err.isAuthError) setMe(null);
+      })
       .finally(() => setMeLoaded(true));
   }, [username]);
 

@@ -299,7 +299,12 @@ function Nav() {
     let alive = true;
     fetchMe()
       .then((res) => alive && setMe(res.data))
-      .catch(() => alive && setMe(null));
+      .catch((err) => {
+        // نُخرج المستخدم من الحساب فقط عند رفض مصادقة حقيقي (401/403 JSON).
+        // صفحة HTML أو عطل شبكة أو 5xx مؤقت لا يعني أن الجلسة انتهت —
+        // هذا بالضبط ما كان يُظهر "سجّل دخولك" للمستخدم صاحب الحساب.
+        if (alive && (!err || err.isAuthError)) setMe(null);
+      });
     return () => {
       alive = false;
     };

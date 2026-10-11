@@ -27,6 +27,14 @@ ALLOWED_HOSTS = [
     ).split(",")
     if h.strip()
 ]
+# PythonAnywhere (production: srashapp.pythonanywhere.com) is always allowed —
+# even when DJANGO_ALLOWED_HOSTS is set but forgot it. Without a matching host
+# Django answers EVERY request (including /api JSON calls) with an HTML
+# "Bad Request (DisallowedHost)" page, which the SPA cannot parse: the UI then
+# shows a red error and pretends the user is logged out although the session is
+# perfectly valid. Same class of failure as an unlisted Render host.
+if ".pythonanywhere.com" not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(".pythonanywhere.com")
 
 # Render.com injects the public URL of the service automatically, so the
 # production deploy works with zero host configuration.
@@ -205,15 +213,22 @@ CSRF_TRUSTED_ORIGINS = [
     o.strip()
     for o in os.environ.get(
         "CSRF_TRUSTED_ORIGINS",
-        # Wildcards keep POSTs working on Render and quick tunnels without
-        # knowing the final subdomain in advance.
+        # Wildcards keep POSTs working on Render, PythonAnywhere and quick
+        # tunnels without knowing the final subdomain in advance.
         "http://localhost:5173,http://localhost:8000,"
-        "https://*.trycloudflare.com,https://*.onrender.com",
+        "https://*.trycloudflare.com,https://*.onrender.com,"
+        "https://*.pythonanywhere.com,http://*.pythonanywhere.com",
     ).split(",")
     if o.strip()
 ]
 if _RENDER_EXTERNAL_URL and _RENDER_EXTERNAL_URL not in CSRF_TRUSTED_ORIGINS:
     CSRF_TRUSTED_ORIGINS.append(_RENDER_EXTERNAL_URL)
+# Same defensive rule as ALLOWED_HOSTS: a missing PythonAnywhere origin turns
+# every POST (login/send/reply) into Django's HTML 403 CSRF page instead of a
+# JSON error, which the SPA surfaces as a scary red banner.
+for _pa_origin in ("https://*.pythonanywhere.com", "http://*.pythonanywhere.com"):
+    if _pa_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_pa_origin)
 
 # Release security checklist defaults.
 SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "0"))

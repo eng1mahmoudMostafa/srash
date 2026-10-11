@@ -26,10 +26,48 @@ api.interceptors.request.use((config) => {
 // If a mutation ever fails with a stale CSRF token (e.g. right after
 // login/register rotates the token), refresh it once and retry — this
 // removes the whole class of "CSRF Failed" errors in the UI.
+function isHtmlPayload(error) {
+  const data = error.response?.data;
+  if (typeof data === "string" && /^\s*<(!doctype|html)/i.test(data)) return true;
+  const headers = error.response?.headers || {};
+  const ctype = String(headers["content-type"] || headers["Content-Type"] || "");
+  return ctype.includes("text/html") && typeof data === "string";
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 api.interceptors.response.use(undefined, async (error) => {
+  // وسم نوع الخطأ حتى لا تعامل الأعطال العابرة (صفحة HTML من الخادم،
+  // انقطاع شبكة، 5xx أثناء إعادة التشغيل) نفس معاملة "انتهت الجلسة".
+  error.isHtmlPage = isHtmlPayload(error);
   const status = error.response?.status;
   const detail = String(error.response?.data?.detail || "");
+  // رفض مصادقة حقيقي فقط: 401 أو 403 برسالة "غير مُسجّل" من JSON.
+  error.isAuthError =
+    status === 401 ||
+    (status === 403 &&
+      /not authenticated|authentication credentials were not provided/i.test(detail));
+
   const config = error.config;
+  const method = (config?.method || "get").toLowerCase();
+  const safeMethod = method === "get" || method === "head";
+  // الخادم قد يرد بصفحة HTML (DisallowedHost / 502 أثناء Reload على
+  // PythonAnywhere / خطأ 500) بدل JSON — نعيد المحاولة مرة واحدة للطلبات
+  // الآمنة بدل عرض خطأ أحمر إجباري فورًا.
+  const transient =
+    !error.response ||
+    error.isHtmlPage ||
+    status === 500 ||
+    status === 502 ||
+    status === 503 ||
+    status === 504;
+  if (safeMethod && transient && config && !config._transientRetried) {
+    config._transientRetried = true;
+    await delay(700);
+    return api.request(config);
+  }
   if (
     status === 403 &&
     /csrf/i.test(detail) &&
@@ -87,9 +125,10 @@ export function handleError(error) {
     if (msg) {
       // The server/proxy may answer with an HTML error page (e.g. Django's
       // 404/500 page when an endpoint doesn't exist yet). Never dump raw
-      // HTML into the UI — show a readable message instead.
+      // HTML into the UI — show a readable message instead. The client
+      // already retried once automatically, so don't ask for a hard reload.
       if (/^\s*<(!doctype|html)/i.test(msg)) {
-        return "تعذّر إتمام الطلب — أعاد الخادم صفحة خطأ. أعد تحميل الصفحة وحاول مرة أخرى، وإن استمر العودة لاحقًا.";
+        return "تعذّر إتمام الطلب مؤقتًا — تحقق من اتصالك بالإنترنت وحاول مرة أخرى بعد لحظات.";
       }
       if (/csrf/i.test(msg)) {
         return "انتهت صلاحية رمز الأمان — حاول مرة أخرى أو أعد تحميل الصفحة.";

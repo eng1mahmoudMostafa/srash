@@ -30,6 +30,9 @@ urlpatterns = [
         r"^manifest\.webmanifest$|^icon-192\.png$|^icon-512\.png$|^icon\.svg$|^favicon\.ico$",
         config_views.spa_asset,
     ),
+    # Any /api/... path that matched no endpoint above must answer JSON —
+    # Django's HTML 404 page used to break the SPA's JSON parsing.
+    re_path(r"^api/", config_views.api_not_found, name="api-not-found"),
     # SPA fallback: anything not /api, /admin, /static goes to the React app.
     re_path(r"^(?!api/|admin/|static/|assets/|media/).*$", config_views.spa_index, name="spa"),
 ]
