@@ -23,10 +23,23 @@ self.addEventListener("push", (event) => {
         type: "window",
         includeUncontrolled: true,
       });
-      // لو في تاب مفتوح: الصفحة تشغّل صوت التنبيه (notify.wav) فنكتم إشعار
-      // النظام لئلا يُسمع صوتان. ولو الموقع مقفول، صوت النظام هو التنبيه.
-      if (windows.length > 0) options.silent = true;
+      // لو في تاب مرئي فعلًا: الصفحة تشغّل صوت التنبيه (notify.wav) فنكتم
+      // إشعار النظام لئلا يُسمع صوتان. أما لو كل التابات مخفية/مصغّرة —
+      // وحالة الموبايل الشائعة: الشاشة مطفية — فصوت الصفحة لن يُسمع أصلًا
+      // (المتصفح يمنع صوت التاب المخفي)، لذا صوت النظام هو التنبيه الوحيد
+      // ويجب ألا نكتمه.
+      let anyVisible = false;
+      for (const c of windows) {
+        try {
+          if (c.visibilityState === "visible") anyVisible = true;
+        } catch {
+          /* بعض المتصفحات لا تدعم visibilityState على الـ client */
+        }
+      }
       for (const c of windows) c.postMessage({ type: "srash:new-message" });
+      // Fallback للمتصفحات التي لا تدعم visibilityState: لو لم نستطع
+      // التأكد من وجود تاب مرئي، لا نكتم — صوت زائد أفضل من صمت تام.
+      if (anyVisible) options.silent = true;
       await self.registration.showNotification(title, options);
     })()
   );
