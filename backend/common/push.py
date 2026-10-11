@@ -156,7 +156,14 @@ def send_push(subscription, payload: dict) -> bool:
     request.add_header("Content-Type", "application/octet-stream")
     request.add_header("Content-Encoding", "aes128gcm")
     request.add_header("TTL", str(PUSH_TTL))
-    request.add_header("Authorization", f"vapid t={_vapid_jwt(private_key, audience)}")
+    # FCM REQUIRES the public key inside the Authorization header itself —
+    # it rejects a bare "vapid t=..." with 403 "authorization header had
+    # no public application server key specified". We also keep it in
+    # Crypto-Key for services that read it from there (Mozilla, etc.).
+    request.add_header(
+        "Authorization",
+        f"vapid t={_vapid_jwt(private_key, audience)}; k={public_key_b64url()}",
+    )
     request.add_header("Crypto-Key", f"p256ecdsa={public_key_b64url()}")
 
     try:
