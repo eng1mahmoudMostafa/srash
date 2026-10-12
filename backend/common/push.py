@@ -171,6 +171,7 @@ def send_push(subscription, payload: dict) -> bool:
 
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
+            raw = response.read().decode("utf-8", "replace")
             ok = 200 <= response.status < 300
     except urllib.error.HTTPError as exc:
         # 404/410 mean the subscription is gone for good — stop retrying it.
@@ -186,6 +187,39 @@ def send_push(subscription, payload: dict) -> bool:
     except Exception:
         logger.warning("push request failed", exc_info=True)
         return False
+
+    # FCM's legacy endpoint answers HTTP 200 even when the token is dead —
+    # the truth is in the JSON body ("success":0 / "failure":1 with an
+    # "InvalidRegistration"/"NotRegistered" error). Without reading it we
+    # would report success for notifications that never reach the device
+    # (observed: pushes "sent" but nothing appears in the Android shade).
+    if ok and raw:
+        try:
+            body = json.loads(raw)
+        except ValueError:
+            body = None
+        if isinstance(body, dict) and (
+            body.get("failure") or body.get("success") == 0
+        ):
+            ok = False
+            errors = [
+                r.get("error", "")
+                for r in body.get("results", [])
+                if isinstance(r, dict)
+            ]
+            dead = any(
+                e in ("InvalidRegistration", "NotRegistered", "MismatchSenderId")
+                for e in errors
+            )
+            if dead:
+                # Token expired/rotated: retire it so the sender re-subscribes
+                # instead of silently pushing into the void forever.
+                subscription.is_active = False
+                subscription.save(update_fields=["is_active"])
+                logger.warning(
+                    "push token rejected by FCM (%s) — subscription retired",
+                    ",".join(errors),
+                )
 
     if ok:
         from django.utils import timezone
