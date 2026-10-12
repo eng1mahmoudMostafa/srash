@@ -17,11 +17,15 @@ class LastSeenMiddleware:
         user = getattr(request, "user", None)
         if user is not None and user.is_authenticated:
             key = f"lastseen:{user.pk}"
-            if not cache.get(key):
-                cache.set(key, 1, 60)
-                # request.user is a SimpleLazyObject; type(user) would be
-                # SimpleLazyObject (no .objects). Use the real user model.
-                get_user_model().objects.filter(pk=user.pk).update(
-                    last_seen_at=timezone.now()
-                )
+            try:
+                if not cache.get(key):
+                    cache.set(key, 1, 60)
+                    # request.user is a SimpleLazyObject; type(user) would be
+                    # SimpleLazyObject (no .objects). Use the real user model.
+                    get_user_model().objects.filter(pk=user.pk).update(
+                        last_seen_at=timezone.now()
+                    )
+            except (ValueError, OSError, RuntimeError):
+                # ذاكرة تالفة: نتخطى التحدٍ — لا نرفع 500 يخرج كـ HTML.
+                pass
         return response

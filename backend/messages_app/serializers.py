@@ -71,12 +71,10 @@ class SendMessageSerializer(serializers.Serializer):
     def validate_image(self, value):
         """Sanitize: 5MB cap, re-encode as JPEG (strips EXIF/GPS), ≤1600px.
 
-        ثم تُرفع على Catbox ونخزن الرابط فقط (validated_data['image_url'])
-        بدل الملف المحلي — صفر مساحة على السيرفر.
-
-        إذا فشل الرفع على Catbox كلياً (مثلاً سيرفر PythonAnywhere الحالي
-        حظر أو تعذّر وصلاً)، نحتفظ بالصورة كملف محلي لضمان وصول الرسالة
-        دون انقطاع ونخزنها على الخادم لمرة واحدة فقط.
+        الرفع لسيرفر استضافة الصور (Catbox + ImgBB) يُنفَّذ لاحقاً في الـ view
+        بس، بمهلة جدرية صارمة (12 ث) وتسرّب تلقائي للملف المحلي لو تعذّر الرفع —
+        كذا ما يطول الطلب ويوقف إرسال كل الرسائل مخلفين شريطاً أحمر متردداً.
+        تعيد الملف (أو None) ويترك للـ create() — لا رفع يدوي هنا.
         """
         if value is None:
             return None
@@ -102,19 +100,10 @@ class SendMessageSerializer(serializers.Serializer):
         img.thumbnail((1600, 1600), Image.LANCZOS)
         buf = BytesIO()
         img.save(buf, format="JPEG", quality=85)
-
-        from common.catbox import upload_to_catbox
-
-        try:
-            url = upload_to_catbox(buf.getvalue(), "attach.jpg")
-        except RuntimeError:
-            # حفظ محلي مؤقت حتى لا تُفقد الصورة إذا تعذّر الرفع على Catbox
-            return SimpleUploadedFile(
-                f"attach-{uuid4().hex[:10]}.jpg", buf.getvalue(), "image/jpeg"
-            )
-        # رابط Catbox المرفوع نخزنه كخاصية على السيريالايزر ليستخدمه validate()/create()
-        self._catbox_url = url
-        return None
+        value.seek(0)
+        return SimpleUploadedFile(
+            f"attach-{uuid4().hex[:10]}.jpg", buf.getvalue(), "image/jpeg"
+        )
 
     def validate(self, attrs):
         username = attrs["username"].strip().lower()
@@ -126,9 +115,6 @@ class SendMessageSerializer(serializers.Serializer):
                 {"username": "المستخدم غير موجود."}
             )
         attrs["recipient"] = recipient
-        # رابط Catbox المرفوع في validate_image (إن وُجد)
-        if getattr(self, "_catbox_url", ""):
-            attrs["image_url"] = self._catbox_url
         return attrs
 
     def create(self, validated_data):

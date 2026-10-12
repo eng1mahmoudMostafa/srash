@@ -33,6 +33,21 @@ def _window_key(signature: str, period: int) -> str:
     return f"rl:{signature}:{period}:{bucket}"
 
 
+def _cache_counter(key: str, cost: int, window: int) -> int:
+    """ثابت نافذة ثابتة (fixed-window counter) يعيد العد منها.
+
+    يُجاهل أي خطأ في الذاكرة (Redis متاح/مغلق، الزحام، مقطع الاتصال، مهلة)
+    ويتعامل مع الطلب كأنه تحت الحد — لا ترفع مشكلة الذاكرة أبداً 500 يخرج
+    كصفحة HTML تعذّر الواجهة تحليلها.
+    """
+    try:
+        current = cache.incr(key, cost)
+    except (ValueError, OSError, RuntimeError):
+        cache.set(key, cost, window)
+        current = cost
+    return current
+
+
 class WindowLimiter:
     """Fixed-window counter stored in cache."""
 
@@ -44,10 +59,11 @@ class WindowLimiter:
     def check(self, signature: str, cost: int = 1):
         key = f"{self.prefix}:{_window_key(signature, self.window)}"
         try:
-            current = cache.incr(key, cost)
-        except ValueError:
-            cache.set(key, cost, self.window)
-            current = cost
+            current = _cache_counter(key, cost, self.window)
+        except Exception:
+            # ذاكرة تالفة لا يمكن فيها تتبع الطلبات: نصمت عن التحدٍ — لا رفع
+            # 500 يخرج كـ HTML يفسد خطأ الواجهة.
+            return 0
         if current > self.limit:
             raise RateLimitExceeded()
         return current

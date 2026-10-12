@@ -95,6 +95,18 @@ def _dispatch_push(recipient) -> None:
     ).start()
 
 
+def _host_image(image):
+    """ارفع صورة محلية (bytes) على Catbox + ImgBB وارجع رابط دائم.
+
+    مهلة جدرية 12 ثانية كاملة؛ محاولات قصيرة فقط (2 × 6ث) قبل التخلي
+    عن الرفع والاحتفاظ بالملف المحلي — ما يطول الطلب و ما يوقف إرسال
+    كل الرسائل بشريط أحمر متردد.
+    """
+    from common.catbox import upload_to_catbox
+
+    return upload_to_catbox(image.read(), "attach.jpg")
+
+
 def _perform_send(request):
     """Validate input, enforce limits and privacy flags, then persist."""
     try:
@@ -107,6 +119,20 @@ def _perform_send(request):
 
     serializer = SendMessageSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
+
+    image = serializer.validated_data.get("image")
+    if image is not None:
+        try:
+            image_url = _host_image(image)
+        except RuntimeError:
+            # استضافة الصورة (Catbox/ImgBB) فشلت مؤقتاً: نحتفظ بالصورة
+            # محلية لضمان وصول الرسالة دون انقطاع، وببدون انتظار مهلة الرفع.
+            image_url = ""
+        else:
+            # صورة مرافقة مرفوعة: نحفظ الرابط ونمسح الملف المحلي
+            # عشان السيريالايزر لا يخزّن نسختين.
+            serializer.validated_data.pop("image", None)
+            serializer.validated_data["image_url"] = image_url
 
     recipient = serializer.validated_data["recipient"]
     if recipient == request.user:

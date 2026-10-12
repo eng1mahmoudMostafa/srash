@@ -15,9 +15,14 @@ import uuid
 logger = logging.getLogger(__name__)
 
 CATBOX_API_URL = "https://catbox.moe/user/api.php"
-TIMEOUT = 8  # ثانية — يبقى زمن المحاولات كلهًا أقل من مهلة طلب السيرفر (~30ث)
-UPLOAD_RETRIES = 3        # محاولة إعادة الرفع في حال فشل مؤقت
+TIMEOUT = 6  # ثانية — يبقى زمن المحاولات كلهًا أقل من مهلة طلب السيرفر (~30ث)
+UPLOAD_RETRIES = 2        # محاولة إعادة الرفع في حال فشل مؤقت
 BACKOFF_BASE = 1.0        # ثانية (مضاعفة كل محاولة)
+# مهلة جدرية كاملة لمسار استضافة الصورة (Catbox + ImgBB): 12 ثانية كحد أقصى.
+# يضمن ذلك إجابة الطلب بسرعة وتحت مهلة الصفحة/سيرفر PythonAnywhere، دون أن
+# ينتظر المستخدم مئات الثواني في حالة تعذّر الرفع — يُرجع التخزين المحلي بدل
+# انتظار مهلة الرفع المذخرة مليون مرة.
+HOST_BUDGET = 12.0
 
 CRLF = chr(13) + chr(10)
 BROWSER_UA = (
@@ -116,10 +121,21 @@ def upload_to_catbox(file_bytes: bytes, filename: str = "image.jpg") -> str:
     """ارفع صورة وارجع رابط دائم: Catbox أولًا، ثم ImgBB لو IMGBB_KEY مضبوط.
 
     تعيد Raise RuntimeError إذا فشل المضيفان — أي نداء يخزن الصورة محليًا.
+
+    مهلة جدرية كاملة (HOST_BUDGET = 12ث) تمنع أي محاولة منعشة من تعذّر الرفع
+    من ذبح الطلب أو إبقاء المستخدم في انتظار مئات الثواني.
     """
     started = time.monotonic()
     last_error = None
     for attempt in range(1, UPLOAD_RETRIES + 1):
+        # الفرع الحساس: لو استهلكنا جزءًا من المهلة، نتوقف عن إعادة المحاولة
+        # فورًا وننتقل لمحاولة ImgBB أو التخزين المحلي بدل حصر الطلب.
+        if time.monotonic() - started >= HOST_BUDGET:
+            logger.warning(
+                "hosting budget used up (%ss) — aborting Catbox retries",
+                int(HOST_BUDGET),
+            )
+            break
         try:
             return _post_catbox(file_bytes, filename)
         except Exception as exc:
@@ -133,10 +149,8 @@ def upload_to_catbox(file_bytes: bytes, filename: str = "image.jpg") -> str:
             if attempt < UPLOAD_RETRIES:
                 time.sleep(BACKOFF_BASE * (2 ** (attempt - 1)))
 
-    # Catbox فشل (منه 412 "Invalid uploader" لو الـ IP داتا سنتر): لو ImgBB
-    # مضبوط وفيه وقت متبقٍ قبل مهلة الطلب (~30 ث) نجربه قبل التخزين المحلي.
     if os.environ.get("IMGBB_KEY", "").strip():
-        if time.monotonic() - started < IMG_HOST_BUDGET:
+        if time.monotonic() - started < HOST_BUDGET:
             logger.info("catbox failed (%s) — trying ImgBB fallback", last_error)
             try:
                 return _post_imgbb(file_bytes, filename)
