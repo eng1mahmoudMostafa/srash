@@ -8,7 +8,12 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR.parent / ".env")
+# override=True: the .env file is the single source of truth. Without it,
+# any stale MESSAGE_ENCRYPTION_KEY / IP_HMAC_KEY set in the PythonAnywhere
+# "Web → Environment variables" panel silently wins over the file — which
+# once made every send fail with UnicodeEncodeError (corrupted placeholder
+# value in the panel) while the console (file-based) worked fine.
+load_dotenv(BASE_DIR.parent / ".env", override=True)
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-change-me")
 
