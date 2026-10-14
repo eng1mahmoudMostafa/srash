@@ -285,6 +285,24 @@ button.danger {
   color: #f4d58d;
 }
 
+.button-link {
+  display: inline-block;
+  background: linear-gradient(135deg, var(--accent, #22c55e), #16a34a);
+  color: #04140a;
+  font-weight: 700;
+  padding: 12px 22px;
+  border-radius: 12px;
+  text-decoration: none;
+  box-shadow: 0 6px 18px rgba(34, 197, 94, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.button-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(34, 197, 94, 0.45);
+  color: #04140a;
+}
+
 .unread {
   border-inline-start: 4px solid var(--accent);
 }

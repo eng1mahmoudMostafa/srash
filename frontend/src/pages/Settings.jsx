@@ -7,12 +7,10 @@ import {
   fetchMe,
   fetchMyProfile,
   fetchSettings,
-  fetchSubscriptionStatus,
   logout,
   patchMyProfile,
   patchSettings,
   removeAvatar,
-  subscribe,
   toggleAnonymous,
   uploadAvatar,
 } from "../api/endpoints";
@@ -24,10 +22,8 @@ export default function SettingsPage() {
 
   const [me, setMe] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [sub, setSub] = useState(null);
   const [settings, setSettings] = useState(null);
 
-  const [transferNote, setTransferNote] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   // إشعارات فورية (Web Push) على هذا الجهاز — بديل البريد الإلكتروني
@@ -47,9 +43,6 @@ export default function SettingsPage() {
     fetchMyProfile()
       .then((res) => setProfile(res.data))
       .catch(() => {});
-    fetchSubscriptionStatus()
-      .then((res) => setSub(res.data))
-      .catch(() => {});
     fetchSettings()
       .then((res) => setSettings(res.data))
       .catch((err) => setError(handleError(err) || "لا يمكن تحميل الإعدادات."));
@@ -63,33 +56,6 @@ export default function SettingsPage() {
       .then((on) => setPushOn(Boolean(on)))
       .catch(() => {});
   }, []);
-
-  // نسخ رقم التحويل (فودافون كاش) إلى الحافظة
-  const copyNumber = () => {
-    const num = "01142634188";
-    const done = () => toast("تم نسخ رقم التحويل ✅");
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(num).then(done).catch(() => {});
-    } else {
-      const ta = document.createElement("textarea");
-      ta.value = num;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-      done();
-    }
-  };
-
-  // فتح تطبيق إنستاباي على هاتف المستخدم (deep link)
-  const openInstaPay = () => {
-    window.location.href = "instapay://";
-    window.setTimeout(() => {
-      toast(
-        "لو لم يفتح تطبيق إنستاباي تلقائيًا، افتحه يدويًا وحوّل على الرقم الموضح."
-      );
-    }, 1500);
-  };
 
   async function run(action, okMessage) {
     setBusy(true);
@@ -173,9 +139,6 @@ export default function SettingsPage() {
     }
   }
 
-  const doSubscribe = () =>
-    run(() => subscribe(transferNote.trim()), "تم إنشاء طلب الاشتراك.");
-
   const savePrivacy = (e) => {
     e.preventDefault();
     run(async () => {
@@ -225,9 +188,6 @@ export default function SettingsPage() {
       </section>
     );
   }
-
-  const activeSub =
-    sub && sub.results ? sub.results.find((s) => s.status === "active") : null;
 
   return (
     <section>
@@ -392,70 +352,23 @@ export default function SettingsPage() {
         </p>
       </section>
 
-      {/* ---- الاشتراك الموثق ---- */}
+      {/* ---- الاشتراك الموثق (صفحة مستقلة) ---- */}
       <section className="card premium-box">
-        <h2 className="section-title">⭐ الاشتراك الموثق — 100 جنيه / شهر</h2>
+        <h2 className="section-title">⭐ الاشتراك الموثق</h2>
         <ul>
           <li>✔ شارة «موثق» على صفحتك العامة وصندوق رسائلك.</li>
           <li>🔒 كشف اسم المرسل واسم مستخدمه في المنصة مع كل رسالة.</li>
           <li>🗑 حذف أي رسالة أرسلتها من صندوق الطرف الآخر.</li>
           <li>💚 دعم استمرار المنصة وتطويرها.</li>
         </ul>
-        {sub?.slots && (
-          <p className="hint">
-            🎟 العدد المتاح اليوم: {sub.slots.day_remaining} من{" "}
-            {sub.slots.day_limit} — هذا الشهر: {sub.slots.month_remaining} من{" "}
-            {sub.slots.month_limit}
-          </p>
+        {me?.is_verified && (
+          <p className="success-box">حسابك موثق ✅</p>
         )}
-        <p className="hint">
-          ⏳ يمكنك إرسال طلب اشتراك مرة واحدة كل 12 ساعة — تأكد من تحويل المبلغ
-          وكتابة رقم العملية قبل الإرسال.
+        <p>
+          <Link className="button-link" to="/subscribe">
+            {me?.is_verified ? "إدارة الاشتراك" : "اشترك الآن"} — 50 جنيه / شهر →
+          </Link>
         </p>
-        {sub?.is_verified || activeSub ? (
-          <p className="success-box">
-            اشتراكك نشط ✅
-            {activeSub?.remaining_days != null && ` (متبقٍ ${activeSub.remaining_days} يوم)`}
-          </p>
-        ) : (
-          <>
-            <div className="pay-methods">
-              <div className="row">
-                <span>فودافون كاش:</span>
-                <strong className="pay-number" dir="ltr">01142634188</strong>
-                <button type="button" onClick={copyNumber}>
-                  📋 نسخ الرقم
-                </button>
-              </div>
-              <div className="row">
-                <button type="button" onClick={openInstaPay}>
-                  💳 الدفع بإنستاباي — افتح التطبيق
-                </button>
-              </div>
-              <p className="hint">
-                زر إنستاباي ينقلك لتطبيق إنستاباي على هاتفك — لو لم يُفتح
-                تلقائيًا افتح التطبيق يدويًا وحوّل على نفس الرقم أعلاه.
-              </p>
-            </div>
-            {sub?.payment_info && <p className="hint">{sub.payment_info}</p>}
-            <label>
-              رقم عملية التحويل
-              <input
-                value={transferNote}
-                onChange={(e) => setTransferNote(e.target.value)}
-                maxLength={120}
-                placeholder="مثال: 987654321"
-              />
-              <span className="hint">
-                اكتب هنا رقم العملية الذي يظهر لك بعد إتمام التحويل ليتحقق منه
-                المشرف.
-              </span>
-            </label>
-            <button disabled={busy} type="button" onClick={doSubscribe}>
-              اشترك الآن — 100 جنيه شهريًا
-            </button>
-          </>
-        )}
       </section>
 
       {/* ---- الخصوصية ---- */}

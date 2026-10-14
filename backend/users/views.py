@@ -494,6 +494,7 @@ class SubscriptionStatusView(APIView):
             {
                 "is_verified": bool(profile.is_verified and has_active),
                 "payment_info": dj_settings.PAYMENT_INFO,
+                "price_egp": dj_settings.PREMIUM_PRICE_EGP,
                 "slots": slots,
                 "results": SubscriptionSerializer(subs, many=True).data,
             }

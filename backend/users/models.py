@@ -127,7 +127,7 @@ class Subscription(models.Model):
         related_name="subscriptions",
     )
     reference = models.CharField(max_length=24, unique=True, blank=True)
-    amount_egp = models.PositiveIntegerField(default=100)
+    amount_egp = models.PositiveIntegerField(default=50)
     status = models.CharField(
         max_length=12, choices=Status.choices, default=Status.PENDING
     )

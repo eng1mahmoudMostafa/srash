@@ -17,6 +17,7 @@ const PublicProfile = lazy(() => import("./pages/PublicProfile"));
 const Inbox = lazy(() => import("./pages/Inbox"));
 const Sent = lazy(() => import("./pages/Sent"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
+const Subscribe = lazy(() => import("./pages/Subscribe"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -449,6 +450,7 @@ export default function App() {
             <Route path="/inbox" element={<Inbox />} />
             <Route path="/sent" element={<Sent />} />
             <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/subscribe" element={<Subscribe />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -407,16 +407,16 @@ if EMAIL_BACKEND.endswith("smtp.EmailBackend") and not (
 # Premium subscription (توثيق الحساب) — manual transfer approved by owner.
 # Owner later sets real transfer details in `.env`: PAYMENT_INFO="..."
 # ---------------------------------------------------------------------------
-PREMIUM_PRICE_EGP = int(os.environ.get("PREMIUM_PRICE_EGP", "100"))
+PREMIUM_PRICE_EGP = int(os.environ.get("PREMIUM_PRICE_EGP", "50"))
 PREMIUM_DAYS = int(os.environ.get("PREMIUM_DAYS", "30"))
 # Capacity limits for verified subscriptions (visible to users, decremented
 # with every approved subscription — counted per Cairo calendar day/month).
-SUB_SLOTS_DAY = int(os.environ.get("SUB_SLOTS_DAY", "600"))
-SUB_SLOTS_MONTH = int(os.environ.get("SUB_SLOTS_MONTH", "2000"))
+SUB_SLOTS_DAY = int(os.environ.get("SUB_SLOTS_DAY", "1200"))
+SUB_SLOTS_MONTH = int(os.environ.get("SUB_SLOTS_MONTH", "4000"))
 # Anti-spam: one subscription request per user every N hours.
 SUB_COOLDOWN_HOURS = int(os.environ.get("SUB_COOLDOWN_HOURS", "12"))
 PAYMENT_INFO = os.environ.get(
     "PAYMENT_INFO",
-    "حوّل 100 جنيه شهريًا على رقم فودافون كاش / إنستاباي: 01142634188 "
+    "حوّل 50 جنيه شهريًا على رقم فودافون كاش / إنستاباي: 01142634188 "
     "ثم أدخل رقم عملية التحويل في الحقل أدناه وسيقرر المشرف الطلب من لوحة الإدارة.",
 )
