@@ -50,30 +50,31 @@ DOMAIN="${USER_NAME}.pythonanywhere.com"
     echo "code: fetch failed (offline?) — retry tomorrow"
   fi
 
-  # ---- 2) Reload عن طريق الـ API (يمدّ تاريخ التشغيل تلقائياً) ----
-  # المصدر الأول للتوكن: متغير البيئة $API_TOKEN (بايثون أني وير بتحطه
-  # تلقائياً جوه المهام المجدولة). المصدر التاني: ملف ~/.pa_api_token
-  # (لو حابب تحط التوكن بنفسك). لو الاتنين مش موجودين، نلمس WSGI كحل بديل.
+  # ---- 2) Reload + renew ----
+  # المصدر الأول للتوكن: متغير البيئة $API_TOKEN. التاني: ملف ~/.pa_api_token
+  # ملاحظة: الـreload عن طريق الـAPI رجّع 404 في اختباراتنا (بايثون أني وير
+  # مش متاحركة الـendpoint ده حالياً) — فمنعتمدش عليه؛ لمس ملف WSGI هو
+  # الطريقة المضمونة لإعادة تشغيل الموقع على بايثون أني وير.
   TOKEN="${API_TOKEN:-}"
   TOKEN_FILE="$HOME/.pa_api_token"
   if [ -z "$TOKEN" ] && [ -f "$TOKEN_FILE" ]; then
     TOKEN=$(tr -d '[:space:]' < "$TOKEN_FILE")
   fi
 
+  # (أ) سجّل تاريخ انتهاء الموقع (مراقبة: هل النشاط اليومي بيمدّد التاريخ؟)
   if [ -n "$TOKEN" ]; then
-    RESP=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-      -H "Authorization: Token $TOKEN" \
-      "https://www.pythonanywhere.com/api/v1/user/${USER_NAME}/websites/${DOMAIN}/reload/")
-    if [ "$RESP" = "200" ]; then
-      echo "renew: api-reload OK (site stays alive)"
-    else
-      echo "renew: api-reload returned HTTP $RESP — check token (Account -> API token)"
-    fi
+    EXPIRY=$(curl -s -H "Authorization: Token $TOKEN" \
+      "https://www.pythonanywhere.com/api/v0/user/${USER_NAME}/webapps/${DOMAIN}/" 2>/dev/null \
+      | python3 -c "import sys,json; print(json.load(sys.stdin).get('expiry','?'))" 2>/dev/null \
+      || echo "?")
+    echo "expiry: ${EXPIRY}"
+  fi
+
+  # (ب) لمس ملف WSGI — إعادة تشغيل مضمونة للموقع
+  if touch /var/www/*_pythonanywhere_com_wsgi.py 2>/dev/null; then
+    echo "reload: wsgi touched OK"
   else
-    # مفيش توكن — نلمس ملف WSGI كحل بديل
-    touch /var/www/*_pythonanywhere_com_wsgi.py 2>/dev/null \
-      && echo "renew: wsgi touched (no token found — \$API_TOKEN or ~/.pa_api_token)" \
-      || echo "renew: NOTE no token — create one from Account -> API token, then: echo 'TOKEN' > ~/.pa_api_token"
+    echo "reload: WARNING could not touch wsgi file"
   fi
 
 } >> "$LOG" 2>&1
