@@ -26,6 +26,7 @@ from users.serializers import (
     ChangePasswordSerializer,
     LoginSerializer,
     MeSerializer,
+    PRESET_SECURITY_QUESTIONS,
     PasswordRecoverySerializer,
     ProfileSerializer,
     ProfileUpdateSerializer,
@@ -58,7 +59,11 @@ class RegisterView(generics.CreateAPIView):
         user = serializer.save()
         login(request, user)
         return Response(
-            UserSerializer(user, context={"request": request}).data,
+            {
+                "id": user.pk,
+                "username": user.username,
+                "security_questions": PRESET_SECURITY_QUESTIONS,
+            },
             status=status.HTTP_201_CREATED,
         )
 

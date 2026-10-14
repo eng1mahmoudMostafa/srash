@@ -99,22 +99,35 @@ class AuthFlowTests(TestCase):
             self.assertIn(field, resp.data)
         self.assertFalse(User.objects.filter(username="q1").exists())
 
-    def test_register_requires_real_name(self):
+    def test_register_display_name_is_optional(self):
+        # Blank name is allowed and falls back to the username.
         resp = self.client.post(
             reverse("auth:register"),
             data=register_payload(username="n1", full_name=""),
             content_type="application/json",
         )
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 201)
+        from users.models import Profile
 
-        for bad in ("", "محمود", "abc123!!"):
+        self.assertEqual(
+            Profile.objects.get(user__username="n1").display_name, "n1"
+        )
+        # A single word (no first+last) is now accepted too.
+        resp = self.client.post(
+            reverse("auth:register"),
+            data=register_payload(username="n1b", full_name="محمود"),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 201)
+        # Invalid names (digits/symbols) are still rejected.
+        for bad in ("abc123!!", "9999"):
             resp = self.client.post(
                 reverse("auth:register"),
                 data=register_payload(username="n2", full_name=bad),
                 content_type="application/json",
             )
             self.assertEqual(resp.status_code, 400, bad)
-        self.assertFalse(User.objects.filter(username__in=["n1", "n2"]).exists())
+        self.assertFalse(User.objects.filter(username="n2").exists())
 
     def test_register_password_errors_are_arabic(self):
         resp = self.client.post(

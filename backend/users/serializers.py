@@ -10,7 +10,8 @@ from users.models import Profile, Subscription, User, UserSettings
 
 logger = logging.getLogger(__name__)
 
-# Real Arabic/Latin names only (no digits/symbols), at least two words.
+# Real Arabic/Latin names only (no digits/symbols). Optional: when left
+# blank the account simply shows the username instead of a display name.
 _REAL_NAME_RE = re.compile(r"^[\u0621-\u064A\u0670-\u06D3a-zA-Z '’\u0640]{2,60}$")
 
 
@@ -22,10 +23,19 @@ def validate_real_name(value):
         raise serializers.ValidationError(
             "الاسم الحقيقي فقط: حروف عربية أو إنجليزية ومسافات، بدون أرقام أو رموز."
         )
-    words = [w for w in value.split(" ") if len(w) >= 2]
-    if len(words) < 2:
-        raise serializers.ValidationError("اكتب الاسم الأول والأخير على الأقل.")
     return value
+
+
+# Ready-made recovery questions so registration needs no typing for this
+# step. Each is already a valid question (Arabic, 10+ chars, ends with ؟).
+PRESET_SECURITY_QUESTIONS = [
+    "ما اسم مدرستك الابتدائية؟",
+    "ما اسم أول حيوان أليف امتلكته؟",
+    "ما اسم المدينة التي وُلدت فيها؟",
+    "ما اسم أفضل صديق لك في الطفولة؟",
+    "ما هو اسم والدك؟",
+    "ما اسم شارع الحي الذي نشأت فيه؟",
+]
 
 
 # Common Django password-validator messages, translated to Arabic so the
@@ -63,8 +73,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         style={"input_type": "password"},
         validators=[validate_password_ar],
     )
-    # REQUIRED: the account's real public name (first + last, letters only).
-    full_name = serializers.CharField(write_only=True, max_length=60)
+    # OPTIONAL display name (letters only). When blank the username is used.
+    full_name = serializers.CharField(
+        write_only=True, max_length=60, required=False, allow_blank=True, default=""
+    )
     # REQUIRED: how this user will recover their password (no e-mail is used).
     security_question = serializers.CharField(max_length=200)
     security_answer = serializers.CharField(
@@ -88,10 +100,6 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def validate_full_name(self, value):
         value = (value or "").strip()
-        if not value:
-            raise serializers.ValidationError(
-                "الاسم الحقيقي مطلوب: اكتب اسمك الأول والأخير."
-            )
         return validate_real_name(value)
 
     def validate_security_question(self, value):
@@ -127,9 +135,9 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.security_question = security_question
         user.set_security_answer(security_answer)
         user.save()
-        # The real name is a required registration step: it seeds the
-        # public profile's display name immediately.
-        Profile.objects.create(user=user, display_name=full_name)
+        # The display name is optional: when the user left it blank we fall
+        # back to their username so the public profile still has a name.
+        Profile.objects.create(user=user, display_name=full_name or validated_data["username"])
         UserSettings.objects.create(user=user)
         return user
 

@@ -4,13 +4,24 @@ import { fetchCsrf, handleError } from "../api/client";
 import { register } from "../api/endpoints";
 import { toast } from "../toast";
 
+// نفس الأسئلة الجاهزة في الخادم — ضغطة واحدة بدل الكتابة.
+const PRESET_QUESTIONS = [
+  "ما اسم مدرستك الابتدائية؟",
+  "ما اسم أول حيوان أليف امتلكته؟",
+  "ما اسم المدينة التي وُلدت فيها؟",
+  "ما اسم أفضل صديق لك في الطفولة؟",
+  "ما هو اسم والدك؟",
+  "ما اسم شارع الحي الذي نشأت فيه؟",
+];
+
 export default function Register() {
   const navigate = useNavigate();
-  const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [securityQuestion, setSecurityQuestion] = useState("");
+  const [securityQuestion, setSecurityQuestion] = useState(PRESET_QUESTIONS[0]);
   const [securityAnswer, setSecurityAnswer] = useState("");
+  const [showName, setShowName] = useState(false);
+  const [fullName, setFullName] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -43,20 +54,6 @@ export default function Register() {
       <h1>إنشاء حساب</h1>
       <form onSubmit={onSubmit} className="form">
         <label>
-          الاسم الحقيقي (إجباري)
-          <input
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            maxLength={60}
-            required
-            placeholder="مثال: محمود مصطفى"
-          />
-          <span className="hint">
-            الاسم الأول والأخير — حروف عربية أو إنجليزية فقط، بدون أرقام أو
-            رموز. يظهر في صفحتك العامة ومع رسائلك للمعتمدين.
-          </span>
-        </label>
-        <label>
           اسم المستخدم
           <input value={username} onChange={(e) => setUsername(e.target.value)} required />
           <span className="hint">رابطك العام سيصبح: /u/{username || "اسم-المستخدم"}</span>
@@ -68,24 +65,29 @@ export default function Register() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            minLength={8}
           />
+          <span className="hint">8 أحرف على الأقل.</span>
         </label>
         <label>
-          سؤال استعادة كلمة المرور (إجباري)
-          <input
+          سؤال استعادة كلمة المرور
+          <select
             value={securityQuestion}
             onChange={(e) => setSecurityQuestion(e.target.value)}
-            maxLength={200}
             required
-            placeholder="مثال: ما اسم مدرستي الابتدائية؟"
-          />
+          >
+            {PRESET_QUESTIONS.map((q) => (
+              <option key={q} value={q}>
+                {q}
+              </option>
+            ))}
+          </select>
           <span className="hint">
-            لو نسيت كلمة المرور هذا هو السؤال الوحيد الذي سيُطلب لك — اكتب
-            سؤالًا واضحًا منتهيًا بعلامة استفهام (لا يقل عن 10 أحرف).
+            لو نسيت كلمة المرور سيُطلب هذا السؤال — اختَر سؤالًا تتذكر إجابته.
           </span>
         </label>
         <label>
-          الإجابة على سؤال الاستعادة (إجباري)
+          الإجابة
           <input
             value={securityAnswer}
             onChange={(e) => setSecurityAnswer(e.target.value)}
@@ -94,10 +96,31 @@ export default function Register() {
             placeholder="مثال: النور"
           />
           <span className="hint">
-            تُحفَظ مُشفَّرة (لا يراها أحد) — اكتبها كما ستتذكرها، فالاختلاف
-            البسيط في الكتابة العربية لا يمنع الاستعادة.
+            تُحفَظ مُشفَّرة (لا يراها أحد) — الاختلاف البسيط في الكتابة العربية لا يمنع
+            الاستعادة.
           </span>
         </label>
+
+        {!showName ? (
+          <button type="button" className="link-btn" onClick={() => setShowName(true)}>
+            + إضافة اسم للعرض (اختياري)
+          </button>
+        ) : (
+          <label>
+            الاسم المعروض (اختياري)
+            <input
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              maxLength={60}
+              placeholder="مثال: محمود مصطفى"
+            />
+            <span className="hint">
+              حروف عربية أو إنجليزية فقط، بدون أرقام أو رموز. لو تركته فارغًا سيظهر اسم
+              المستخدم.
+            </span>
+          </label>
+        )}
+
         {error && <p className="error">{error}</p>}
         <button disabled={busy} type="submit">
           {busy ? "جارٍ الإنشاء..." : "إنشاء الحساب"}
