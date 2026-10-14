@@ -73,10 +73,8 @@ class RegisterSerializer(serializers.ModelSerializer):
         style={"input_type": "password"},
         validators=[validate_password_ar],
     )
-    # OPTIONAL display name (letters only). When blank the username is used.
-    full_name = serializers.CharField(
-        write_only=True, max_length=60, required=False, allow_blank=True, default=""
-    )
+    # REQUIRED display name (letters only; a single word is accepted).
+    full_name = serializers.CharField(write_only=True, max_length=60)
     # REQUIRED: how this user will recover their password (no e-mail is used).
     security_question = serializers.CharField(max_length=200)
     security_answer = serializers.CharField(
@@ -96,10 +94,19 @@ class RegisterSerializer(serializers.ModelSerializer):
         ]
 
     def validate_username(self, value):
-        return value.strip().lower()
+        u = value.strip().lower()
+        if not u:
+            raise serializers.ValidationError("اسم المستخدم مطلوب.")
+        if re.search(r"\s", value.strip()):
+            raise serializers.ValidationError(
+                "اسم المستخدم بدون مسافات — حروف أو أرقام فقط."
+            )
+        return u
 
     def validate_full_name(self, value):
         value = (value or "").strip()
+        if not value:
+            raise serializers.ValidationError("الاسم المعروض مطلوب.")
         return validate_real_name(value)
 
     def validate_security_question(self, value):

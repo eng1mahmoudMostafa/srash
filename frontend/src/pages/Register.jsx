@@ -16,12 +16,11 @@ const PRESET_QUESTIONS = [
 
 export default function Register() {
   const navigate = useNavigate();
+  const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [securityQuestion, setSecurityQuestion] = useState(PRESET_QUESTIONS[0]);
   const [securityAnswer, setSecurityAnswer] = useState("");
-  const [showName, setShowName] = useState(false);
-  const [fullName, setFullName] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -54,9 +53,30 @@ export default function Register() {
       <h1>إنشاء حساب</h1>
       <form onSubmit={onSubmit} className="form">
         <label>
+          الاسم المعروض
+          <input
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            maxLength={60}
+            required
+            placeholder="مثال: محمود مصطفى"
+          />
+          <span className="hint">
+            حروف عربية أو إنجليزية فقط، بدون أرقام أو رموز. يظهر في صفحتك العامة.
+          </span>
+        </label>
+        <label>
           اسم المستخدم
-          <input value={username} onChange={(e) => setUsername(e.target.value)} required />
-          <span className="hint">رابطك العام سيصبح: /u/{username || "اسم-المستخدم"}</span>
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+            placeholder="بدون مسافات"
+          />
+          <span className="hint">
+            بدون مسافات — حروف أو أرقام فقط. رابطك العام سيصبح: /u/
+            {username || "اسم-المستخدم"}
+          </span>
         </label>
         <label>
           كلمة المرور
@@ -100,26 +120,6 @@ export default function Register() {
             الاستعادة.
           </span>
         </label>
-
-        {!showName ? (
-          <button type="button" className="link-btn" onClick={() => setShowName(true)}>
-            + إضافة اسم للعرض (اختياري)
-          </button>
-        ) : (
-          <label>
-            الاسم المعروض (اختياري)
-            <input
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              maxLength={60}
-              placeholder="مثال: محمود مصطفى"
-            />
-            <span className="hint">
-              حروف عربية أو إنجليزية فقط، بدون أرقام أو رموز. لو تركته فارغًا سيظهر اسم
-              المستخدم.
-            </span>
-          </label>
-        )}
 
         {error && <p className="error">{error}</p>}
         <button disabled={busy} type="submit">
