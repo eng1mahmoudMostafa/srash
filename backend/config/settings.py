@@ -130,6 +130,11 @@ if os.environ.get("DB_ENGINE", "postgres") == "postgres":
             "HOST": os.environ.get("DB_HOST", "db"),
             "PORT": os.environ.get("DB_PORT", "5432"),
             "CONN_MAX_AGE": int(os.environ.get("DB_CONN_MAX_AGE", "60")),
+            # Neon (and most hosted Postgres) REQUIRE TLS. The plain
+            # libpq default is "prefer", which usually still negotiates
+            # SSL, but making it explicit removes an entire class of
+            # "SSL connection required" deployment failures.
+            "OPTIONS": {"sslmode": os.environ.get("DB_SSLMODE", "require")},
         }
     }
 else:
