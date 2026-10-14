@@ -51,26 +51,29 @@ DOMAIN="${USER_NAME}.pythonanywhere.com"
   fi
 
   # ---- 2) Reload عن طريق الـ API (يمدّ تاريخ التشغيل تلقائياً) ----
+  # المصدر الأول للتوكن: متغير البيئة $API_TOKEN (بايثون أني وير بتحطه
+  # تلقائياً جوه المهام المجدولة). المصدر التاني: ملف ~/.pa_api_token
+  # (لو حابب تحط التوكن بنفسك). لو الاتنين مش موجودين، نلمس WSGI كحل بديل.
+  TOKEN="${API_TOKEN:-}"
   TOKEN_FILE="$HOME/.pa_api_token"
-  if [ -f "$TOKEN_FILE" ]; then
+  if [ -z "$TOKEN" ] && [ -f "$TOKEN_FILE" ]; then
     TOKEN=$(tr -d '[:space:]' < "$TOKEN_FILE")
-    if [ -n "$TOKEN" ]; then
-      RESP=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-        -H "Authorization: Token $TOKEN" \
-        "https://www.pythonanywhere.com/api/v0/user/${USER_NAME}/webapp/${DOMAIN}/reload/")
-      if [ "$RESP" = "200" ]; then
-        echo "renew: api-reload OK (site stays alive)"
-      else
-        echo "renew: api-reload returned HTTP $RESP — check token / touch wsgi manually"
-      fi
+  fi
+
+  if [ -n "$TOKEN" ]; then
+    RESP=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+      -H "Authorization: Token $TOKEN" \
+      "https://www.pythonanywhere.com/api/v1/user/${USER_NAME}/websites/${DOMAIN}/reload/")
+    if [ "$RESP" = "200" ]; then
+      echo "renew: api-reload OK (site stays alive)"
     else
-      echo "renew: token file is empty"
+      echo "renew: api-reload returned HTTP $RESP — check token (Account -> API token)"
     fi
   else
-    # مفيش توكن — نلمس ملف WSGI كحل بديل (بيمدّ تاريخ التشغيل برضه)
+    # مفيش توكن — نلمس ملف WSGI كحل بديل
     touch /var/www/*_pythonanywhere_com_wsgi.py 2>/dev/null \
-      && echo "renew: wsgi touched (no api token yet — create one for full auto-renew)" \
-      || echo "renew: NOTE create ~/.pa_api_token from PA Account page -> API token"
+      && echo "renew: wsgi touched (no token found — \$API_TOKEN or ~/.pa_api_token)" \
+      || echo "renew: NOTE no token — create one from Account -> API token, then: echo 'TOKEN' > ~/.pa_api_token"
   fi
 
 } >> "$LOG" 2>&1
