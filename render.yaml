@@ -1,22 +1,39 @@
-# render.yaml — النشر السحابي لـ«صراحة بلا كذب» على Render (Blueprint)
-# الخطوات: GitHub → New repo → ارفع مجلد المشروع → Render → New + → Blueprint
-# → اختر المستودع → أدخل القيم السرية المطلوبة → Apply. انتهى.
+# render.yaml — النشر السحابي لـ«صراحة» على Render.com (Blueprint)
+# =====================================================================
+# الفكرة: تربط المستودع بـ Render مرة واحدة، وبعد كده
+#   git push origin main  =  نشر تلقائي (بدون أي دخول للسيرفر!)
+# =====================================================================
 #
-# القيم السرية الوحيدة المطلوب إدخالها وقت الـApply:
-#   DJANGO_SECRET_KEY   (مفتاح عشوائي — مزوّد لك في التعليمات)
-#   EMAIL_HOST_PASSWORD (كلمة مرور تطبيق Gmail ذات الـ16 حرفًا)
-# كل شيء آخر (النطاق، CSRF، قاعدة البيانات) يُضبط تلقائيًا.
-
-# لا قاعدة بيانات داخل Render (تطلب بطاقة) — نستخدم SQLite الآن،
-# وللترقية لاحقًا: أنشئ Postgres مجاني على neon.tech ثم أضف في Render
-# Environment:  DATABASE_URL=<رابط الاتصال>  و  DB_ENGINE=postgres
-# وsettings.py يدعم DATABASE_URL جاهزًا.
+# الخطوات الكاملة:
+#   1. أنشئ قاعدة بيانات مجانية على neon.tech (بدون بطاقة):
+#        New Project → انسخ "Connection string" (يبدأ بـ postgres://)
+#   2. GitHub → ارفع المستودع (لو لسه)
+#   3. Render.com → New + → Blueprint → اختر المستودع
+#   4. هيطلب منك القيم السرية (sync: false تحت) — ادخلها:
+#        DJANGO_SECRET_KEY      : مفتاح عشوائي طويل
+#        DATABASE_URL           : رابط Neon من الخطوة 1
+#        MESSAGE_ENCRYPTION_KEY : نفس المفتاح الحالي في ~/srash/.env (مهم!
+#                                 لو غيّرته الرسائل القديمة مش هتتقرأ)
+#        IP_HMAC_KEY            : نفس المفتاح الحالي في ~/srash/.env
+#        EMAIL_HOST_PASSWORD    : App Password بتاع Gmail (16 حرف)
+#        R2_*                   : مفاتيح Cloudflare R2 (للصور)
+#        VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT : للإشعارات
+#   5. Apply → بيبني وينشر لوحده. خلاص.
+#
+# ملاحظات مهمة:
+#   - الخطة المجانية: الموقع «ينام» بعد 15 دقيقة بدون زيارات،
+#     أول زائر بعده يستنى ~30-60 ثانية. الحل: خطة مدفوعة 7$/شهر.
+#   - البيانات كلها في Neon (مش على القرص) — النشر مابيمسحش حاجة.
+#   - الصور في Cloudflare R2 — مابتاخدش مساحة من السيرفر.
+#   - لو معاك دومين خاص: Render → Settings → Custom Domains (مجاني).
 
 services:
   - type: web
     name: srash
     runtime: python
     plan: free
+    region: frankfurt          # الأقرب لمصر/الشرق الأوسط
+    healthCheckPath: /api/stats/
     buildCommand: >-
       cd backend &&
       pip install -r requirements.txt &&
@@ -27,22 +44,31 @@ services:
       python manage.py collectstatic --noinput
     startCommand: >-
       cd backend &&
-      python manage.py migrate &&
+      python manage.py migrate --noinput &&
       gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 60
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.9"
-      # SQLite now (no card required). Later: set DB_ENGINE=postgres + DATABASE_URL.
+
+      # قاعدة البيانات — Neon Postgres مجاني (بدون بطاقة)
       - key: DB_ENGINE
-        value: sqlite
-      # Free plan has no Redis — locmem cache works for a single instance.
+        value: postgres
+      - key: DATABASE_URL
+        sync: false            # postgres://user:pass@host/db?sslmode=require
+
+      # الخطة المجانية مفيهاش Redis — locmem كافي لنسخة واحدة
       - key: CACHE_BACKEND
         value: locmem
+
+      # إعدادات الأمان (HTTPS على Render افتراضي)
       - key: COOKIE_SECURE
         value: "1"
       - key: SECURE_HSTS_SECONDS
         value: "31536000"
-      # E-mail (non-secret parts)
+      - key: DJANGO_DEBUG
+        value: "0"
+
+      # البريد (القيم غير السرية)
       - key: EMAIL_BACKEND
         value: django.core.mail.backends.smtp.EmailBackend
       - key: EMAIL_HOST
@@ -55,8 +81,38 @@ services:
         value: sarahuhbilakadhb@gmail.com
       - key: DEFAULT_FROM_EMAIL
         value: sarahuhbilakadhb@gmail.com
-      # Secrets — fill these during the Blueprint "Apply" step:
+
+      # رابط الموقع للرسايل (رابط إعادة التعيين)
+      # سيبه فاضي أول مرة، وبعد أول نشر حط رابط onrender.com الحقيقي
+      - key: SITE_BASE_URL
+        value: ""
+
+      # ---- القيم السرية (هيطلبها Render وقت الـ Apply) ----
       - key: DJANGO_SECRET_KEY
         sync: false
       - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: MESSAGE_ENCRYPTION_KEY
+        sync: false
+      - key: IP_HMAC_KEY
+        sync: false
+
+      # صور Cloudflare R2 (مش هتاخد مساحة من السيرفر)
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_PUBLIC_BASE
+        sync: false
+
+      # إشعارات الموبايل (Web Push)
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
         sync: false
