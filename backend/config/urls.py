@@ -7,6 +7,10 @@ from users import views as users_views
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/stats/", users_views.GlobalStatsView.as_view(), name="global-stats"),
+    # Deploy + renew webhook (daily external cron; secret-protected).
+    # Must come before the SPA fallback below, otherwise /internal/deploy/
+    # would be served as the React app instead of running the deploy script.
+    path("internal/deploy/", config_views.deploy_webhook, name="deploy-webhook"),
     path("api/auth/", include("users.urls")),
     path("api/users/", include("users.profile_urls")),
     path("api/messages/", include("messages_app.urls")),

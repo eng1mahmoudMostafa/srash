@@ -14,6 +14,9 @@ Performance notes:
 """
 import mimetypes
 import os
+import secrets
+import subprocess
+import threading
 
 from django.conf import settings
 from django.http import (
@@ -163,3 +166,57 @@ def spa_index(request, *args, **kwargs):
     resp["Cache-Control"] = "no-cache"
     resp["Vary"] = "Accept-Encoding"
     return resp
+
+
+def deploy_webhook(request):
+    """Secret-protected deploy + renew endpoint (GET).
+
+    Why this exists
+    ---------------
+    PythonAnywhere's free plan cannot create scheduled tasks, and since March
+    2026 a free web app stops running ~1 month after the last account activity
+    ("Run until" date). So an external free cron (cron-job.org — no card
+    needed) hits this URL once a day. The deploy script then runs in a
+    background thread: it pulls new code from GitHub, runs migrations, and
+    reloads the webapp through the official PythonAnywhere API — which both
+    activates the new code and renews the "run until" date. The owner never
+    has to log in again.
+
+    Security
+    --------
+    The GitHub repo is PUBLIC, so the secret can never live in the code. It
+    comes only from DEPLOY_WEBHOOK_SECRET (set in the server's ~/srash/.env)
+    and travels as a query parameter. compare_digest keeps the comparison
+    constant-time. Without the secret the endpoint answers 403.
+    """
+    secret = os.environ.get("DEPLOY_WEBHOOK_SECRET", "")
+    provided = request.GET.get("secret", "")
+    if (
+        not secret
+        or not provided
+        or not secrets.compare_digest(provided, secret)
+    ):
+        return JsonResponse({"detail": "forbidden"}, status=403)
+
+    def _run():
+        log = open(os.path.expanduser("~/srash/webhook_deploy.log"), "a")
+        try:
+            subprocess.run(
+                ["bash", os.path.expanduser("~/srash/deploy_pa.sh")],
+                timeout=300,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+            )
+        except Exception:
+            # Any failure is already captured by the script's own logging.
+            pass
+        finally:
+            log.close()
+
+    threading.Thread(target=_run, daemon=True).start()
+    return JsonResponse(
+        {
+            "status": "deploy started",
+            "note": "check ~/srash/deploy.log in about a minute",
+        }
+    )
